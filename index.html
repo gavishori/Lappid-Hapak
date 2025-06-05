@@ -3,867 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>יומן אירועים</title>
-    <!-- Tailwind CSS CDN -->
+    <title>יומן חפ"ק - לפיד</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Flatpickr CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The structure consolidates all input into a primary section at the top, allowing for both adding new entries and editing existing ones. This main input area is followed by global filter/selection dropdowns that set defaults for new entries and reflect values during editing. The main content area displays the data in a clear table, providing direct 'Edit' and 'Delete' actions for each entry. This top-to-bottom flow (Input/Controls -> Data Display) is intuitive for managing reports, prioritizing user understanding and ease of navigation by centralizing core interactions. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Organize/Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update'. Clicking 'Delete' removes a row. The dropdowns pre-fill the form and reflect current report values. Justification: A form and table are standard for structured data. Consolidating add/edit into one form simplifies the UI. Direct table actions enhance usability. This approach is user-friendly and efficient for the primary task of logging and managing reports. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsiveness. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        /* Custom styles for the table to match the image's appearance */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            flex-direction: column; /* Stack header, input area, and table vertically */
-            justify-content: flex-start;
-            align-items: center; /* Center content horizontally */
-            min-height: 100vh;
-            padding: 20px;
+            font-family: 'Assistant', sans-serif;
+            background-color: #FDFBF7;
         }
-        .header-top-area {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 1200px;
-            margin-bottom: 20px;
-        }
-        .header-top-left {
-            background-color: #ffcc00; /* Yellow background for "הערכת מצב בשעה" */
-            color: #000;
-            font-weight: bold;
-            text-align: center;
-            padding: 12px 16px;
-            border-radius: 8px;
-            position: relative; /* Needed for absolute positioning of cell number */
-        }
-        .digital-clock {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: red;
-            background-color: #fff;
-            padding: 8px 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .table-container {
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow-x: auto; /* Allows horizontal scrolling on small screens if content overflows */
-            width: 100%;
-            max-width: 1200px;
-        }
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            table-layout: fixed; /* Ensures column widths are respected */
-        }
-        th, td {
+        .table-cell {
             padding: 12px 16px;
             text-align: right;
-            border-bottom: 1px solid #e2e8f0;
-            position: relative; /* Needed for absolute positioning of cell numbers */
-            vertical-align: top; /* Align content to the top of the cell */
-            box-sizing: border-box; /* Include padding in width calculations */
+            border-bottom: 1px solid #EAE2D9;
+            vertical-align: middle;
         }
-        th {
-            background-color: #ffe0e6; /* Light pink background for headers */
-            color: #333;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            white-space: nowrap; /* Keep headers on one line */
+        .form-input, .form-select, .form-textarea {
+            border-color: #DCD5CC;
+            transition: all 0.3s ease;
         }
-        td {
-            white-space: normal; /* Allow text wrapping within data cells */
-        }
-        tr:nth-child(even) {
-            background-color: #f8faff; /* Light blueish background for even rows */
-        }
-        tr:hover {
-            background-color: #f0f4f8; /* Hover effect for rows */
-        }
-        .dropdown-cell {
-            position: relative;
-        }
-        .dropdown-cell select {
-            appearance: none; /* Remove default arrow */
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-color: #e0f2fe; /* Light blue background for dropdowns */
-            border: 1px solid #90cdf4;
-            border-radius: 6px;
-            padding: 8px 30px 8px 12px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #2c5282;
-            width: 100%;
-            min-width: 100px; /* Reduced min-width for mobile flexibility */
-        }
-        .dropdown-cell select:focus {
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: #B8A692;
+            box-shadow: 0 0 0 2px rgba(184, 166, 146, 0.2);
             outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
         }
-        .dropdown-cell::after {
-            content: '▼'; /* Custom dropdown arrow */
-            position: absolute;
-            top: 50%;
-            left: 10px;
-            transform: translateY(-50%);
-            pointer-events: none;
-            color: #2c5282;
+        .btn-primary {
+            background-color: #8C7A6B;
+            color: #FFFFFF;
+            transition: background-color 0.3s ease;
         }
-        /* Style for displaying cell numbers */
-        .cell-number {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            font-size: 0.7em;
-            color: #888;
-            padding: 1px 4px;
-            border-radius: 4px;
-            z-index: 1;
+        .btn-primary:hover {
+            background-color: #736357;
         }
-        /* Style for input fields and textareas within cells */
-        .cell-input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 0.9rem;
-            resize: vertical; /* Allow vertical resizing, but not horizontal */
-            min-height: 38px; /* Ensure consistent height with single-line input */
-            vertical-align: top; /* Align text to the top for multi-line */
-            white-space: normal; /* Allow text wrapping within textarea */
+        .btn-secondary {
+            background-color: #EAE2D9;
+            color: #6D5F53;
+            transition: background-color 0.3s ease;
         }
-        .cell-input:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+        .btn-secondary:hover {
+            background-color: #DCD5CC;
         }
-
-        /* Responsive Column Widths and Visibility for table rows (default is desktop) */
-        .col-description { width: 30%; }
-        .col-date { width: 15%; }
-        .col-time { width: 15%; }
-        .col-reporter { width: 20%; }
-        .col-journal { width: 20%; }
-
-        /* Specific styling for the separate input form area */
-        .input-form-area {
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 16px;
-            margin-bottom: 20px; /* Space between input area and table */
-            width: 100%;
-            max-width: 1200px;
-            box-sizing: border-box; /* Include padding in width */
-            display: flex;
-            flex-direction: column; /* Stack items vertically by default */
-            gap: 15px; /* Increased space between input elements for visual separation */
-        }
-        .input-form-area .main-input-wrapper {
-            flex-grow: 1;
-        }
-        .input-form-area .select-group {
-            display: flex;
-            gap: 10px; /* Space between the two selects */
-        }
-        .input-form-area .select-group > div {
-            flex-basis: 50%; /* Each select wrapper takes half width */
-            flex-grow: 1;
-        }
-        .input-form-area .submit-button-wrapper {
-            display: flex;
-            justify-content: flex-end; /* Align button to the right */
-            margin-top: 10px; /* Space above the button */
-        }
-        .input-form-area button {
-            background-color: #4299e1; /* Blue button */
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .input-form-area button:hover {
-            background-color: #3182ce; /* Darker blue on hover */
-        }
-
-
-        /* Adjust input elements within the form area to match screenshot's lighter look */
-        .input-form-area .cell-input,
-        .input-form-area .dropdown-cell select {
-            border: 1px solid #d1d5db; /* Lighter border for clean look */
-            background-color: #f9fafb; /* Very light background */
-        }
-        .input-form-area .dropdown-cell select {
-            min-height: 38px; /* Match textarea/input height */
-            padding-right: 30px; /* Space for custom arrow */
-        }
-
-        /* Mobile specific overrides */
-        @media (max-width: 767px) {
-            /* Table headers and data rows */
-            thead .col-date,
-            thead .col-time {
-                display: table-cell; /* Ensure headers are visible on mobile */
-            }
-            td.col-date,
-            td.col-time {
-                display: table-cell; /* Ensure data cells are visible on mobile */
-            }
-
-            /* Adjust column widths for mobile data rows based on image */
-            .col-description { width: 35%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
-            .col-reporter { width: 20%; }
-            .col-journal { width: 15%; }
-
-            /* Input form area specific mobile adjustments */
-            .input-form-area {
-                padding: 12px; /* Slightly less padding on very small screens */
-                gap: 10px; /* Slightly less gap */
-            }
-            .input-form-area .main-input-wrapper {
-                margin-bottom: 5px; /* Small space between textarea and selects group */
-            }
-            .input-form-area .select-group {
-                flex-direction: row; /* Keep selects side by side */
-                gap: 8px; /* Slightly less gap for selects */
-            }
-            .input-form-area .select-group > div {
-                flex-basis: 50%;
-            }
-        }
-
-        /* Tablet/Desktop adjustments (can inherit from default for some or override) */
-        @media (min-width: 768px) { /* md breakpoint */
-            .col-description { width: 25%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
-            .col-reporter { width: 25%; }
-            .col-journal { width: 20%; }
-
-            .input-form-area {
-                flex-direction: column; /* Stack textarea on top, selects below */
-                gap: 15px;
-            }
-        }
-
-        @media (min-width: 1024px) { /* lg breakpoint */
-            .col-description { width: 30%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
-            .col-reporter { width: 20%; }
-            .col-journal { width: 20%; }
-        }
-
-        /* Loading indicator styling */
-        .loading-indicator {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 8px;
-            z-index: 1000;
-        }
-        .loading-indicator.show {
-            display: block;
-        }
-
-        /* Error message styling */
-        .error-message {
-            display: none; /* Hidden by default */
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 1200px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .error-message.show {
-            display: block;
-        }
-
     </style>
 </head>
-<body class="bg-gray-100 p-4">
-    <div class="header-top-area">
-        <div class="header-top-left" id="header-top-left">
-            הערכת מצב בשעה 13:00
-            <span class="cell-number">A2</span>
-        </div>
-        <div id="digital-clock" class="digital-clock">00:00</div>
-    </div>
+<body class="bg-[#FDFBF7] text-[#4A443E]">
 
-    <!-- Error Message Display -->
-    <div id="error-display" class="error-message">
-        <p>שגיאה בחיבור ל-Firebase. אנא ודא שמפתח ה-API ומזהה הפרויקט הוגדרו נכון. אם אתה משתמש בפלטפורמת Canvas, ודא שאתה עובד בסביבה מתאימה.</p>
-        <p>פרטים נוספים בקונסולה של הדפדפן.</p>
-    </div>
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-5xl">
 
-    <!-- Separate input form area (Conceptual A3, D3, E3) -->
-    <div class="input-form-area">
-        <div class="main-input-wrapper">
-            <textarea class="cell-input" id="inputA3" rows="1" placeholder="תיאור האירוע"></textarea>
-        </div>
-        <div class="select-group">
-            <div>
-                <div class="dropdown-cell">
-                    <select class="reporter-name-select" id="inputD3">
-                        <option value="">שם המדווח</option>
-                        <option value="שונית">שונית</option>
-                        <option value="אורי">אורי</option>
-                        <option value="יעקב">יעקב</option>
-                        <option value="משה">משה</option>
-                    </select>
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-[#6D5F53]">יומן חפ"ק - לפיד</h1>
+        </header>
+
+        <main class="bg-white rounded-xl shadow-lg p-6 ring-1 ring-[#EAE2D9]">
+            <div class="controls-section mb-6 pb-6 border-b border-[#EAE2D9]">
+                
+                <!-- Main Input and Action Area -->
+                <div class="max-w-xl mx-auto mb-6 p-4 bg-[#F8F5F1] rounded-lg shadow-inner">
+                    <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
+                    <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md mb-4" rows="4" placeholder="הזן פרטי אירוע, דגשים, ומסקנות..."></textarea>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="newDate" class="block mb-1 text-sm font-medium">תאריך:</label>
+                            <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="newTime" class="block mb-1 text-sm font-medium">שעה:</label>
+                            <input type="time" id="newTime" class="form-input w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-center mt-4">
+                        <button id="mainActionBtn" class="btn-primary font-bold py-2 px-8 rounded-lg shadow">הזן</button>
+                        <button id="cancelEditBtn" class="btn-secondary font-bold py-2 px-8 rounded-lg shadow ml-4 hidden">ביטול עריכה</button>
+                    </div>
+                    <div id="inputErrorMessage" class="text-red-500 text-center mt-4 h-5"></div>
+                </div>
+
+                <!-- Filter Dropdowns -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+                    <div>
+                        <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שם המדווח (לבחירה אוטומטית):</label>
+                        <select id="filterReporter" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
+                            <option value="אורי">אורי</option>
+                            <option value="שונית">שונית</option>
+                            <option value="חיליק">חיליק</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filterLogType" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שיוך יומן (לבחירה אוטומטית):</label>
+                        <select id="filterLogType" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
+                            <option value="שגרה">שגרה</option>
+                            <option value="שריפה">שריפה</option>
+                            <option value="אחר">אחר</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <div>
-                <div class="dropdown-cell">
-                    <select class="journal-assignment-select" id="inputE3">
-                        <option value="">שיוך יומן</option>
-                        <option value="חרבות ברזל">חרבות ברזל</option>
-                        <option value="תרגיל">תרגיל</option>
-                        <option value="שריפה">שריפה</option>
-                        <option value="שגרה">שגרה</option>
-                        <option value="אחר">אחר</option>
-                    </select>
-                </div>
+
+            <div class="table-container overflow-x-auto">
+                 <p class="text-md text-[#6D5F53] mb-4">זוהי טבלת הדיווחים. כל דיווח חדש שיתווסף או יעודכן יופיע כאן באופן מיידי.</p>
+                <table class="w-full min-w-full text-sm">
+                    <thead class="bg-[#F8F5F1]">
+                        <tr>
+                            <th class="table-cell font-bold text-[#6D5F53]">דיווח</th>
+                            <th class="table-cell font-bold text-[#6D5F53]">תאריך</th>
+                            <th class="table-cell font-bold text-[#6D5F53]">שעה</th>
+                            <th class="table-cell font-bold text-[#6D5F53]">שם המדווח</th>
+                            <th class="table-cell font-bold text-[#6D5F53]">שיוך יומן</th>
+                            <th class="table-cell font-bold text-[#6D5F53]">פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <tr id="empty-state">
+                            <td colspan="6" class="table-cell text-center text-gray-500 py-8">לא נוספו דיווחים עדיין.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        </div>
-        <div class="submit-button-wrapper">
-            <button id="submitButton">הזן</button>
-        </div>
+
+            <!-- Removed the redundant add-report-form section -->
+        </main>
+
     </div>
 
-    <div class="table-container">
-        <table class="min-w-full">
-            <thead>
-                <tr>
-                    <!-- Row 2 (headers) -->
-                    <th class="rounded-tr-lg col-description">
-                        תיאור האירוע
-                    </th>
-                    <th class="col-date">
-                        תאריך
-                    </th>
-                    <th class="col-time">
-                        שעה
-                    </th>
-                    <th class="col-reporter">
-                        שם המדווח
-                    </th>
-                    <th class="rounded-tl-lg col-journal">
-                        שיוך יומן
-                    </th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <!-- Data rows will be dynamically loaded from Firestore -->
-            </tbody>
-        </table>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterReporter = document.getElementById('filterReporter');
+            const filterLogType = document.getElementById('filterLogType');
+            
+            const generalTextInput = document.getElementById('generalTextInput');
+            const newDateInput = document.getElementById('newDate');
+            const newTimeInput = document.getElementById('newTime');
 
-    <!-- Loading Indicator -->
-    <div id="loading-indicator" class="loading-indicator">
-        טוען נתונים...
-    </div>
+            const mainActionBtn = document.getElementById('mainActionBtn');
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            const tableBody = document.getElementById('reportTableBody');
+            const emptyStateRow = document.getElementById('empty-state');
+            const inputErrorMessage = document.getElementById('inputErrorMessage');
 
-    <!-- Flatpickr JS -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/he.js"></script> <!-- Hebrew locale -->
+            let reports = [];
+            let editingReportIndex = null; // null when adding, index when editing
 
-    <script type="module">
-        // Firebase imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables for Firebase (provided by Canvas environment)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-
-        // Fallback for firebaseConfig if projectId or apiKey is missing (crucial for Uncaught FirebaseError)
-        // Note: For actual deployment, replace these with real Firebase project details.
-        const defaultFirebaseConfig = {
-            apiKey: "AIzaSyAH5Aif-yJd03-rPF4D6XvOT5af28MfXO0",
-            authDomain: "lappid-hapak.firebaseapp.com",
-            projectId: "lappid-hapak",
-            storageBucket: "lappid-hapak.firebasestorage.app",
-            messagingSenderId: "164837194636",
-            appId: "1:164837194636:web:068ea1f14f303d2bbb34a9"
-        };
-
-        // Check if firebaseConfig is provided by Canvas and is valid, otherwise use defaultFirebaseConfig.
-        // The condition `firebaseConfig.projectId === "default-project-id"` is specifically to catch
-        // cases where Canvas *might* provide a projectId but it's our placeholder.
-        if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "default-project-id" || !firebaseConfig.apiKey) {
-             console.warn("Firebase config is missing or contains placeholder values. Attempting to use provided default configuration. Please ensure your Firebase project details are correctly configured.");
-            firebaseConfig = { ...defaultFirebaseConfig, ...firebaseConfig }; // Merge to ensure default values fill gaps
-        }
-
-
-        let app, db, auth;
-        let isFirebaseInitialized = false;
-
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            isFirebaseInitialized = true;
-            console.log("Firebase initialized successfully.");
-        } catch (error) {
-            console.error("Failed to initialize Firebase:", error);
-            document.getElementById('error-display').classList.add('show'); // Show user-friendly error
-            // Prevent further Firebase operations if initialization failed
-        }
-
-
-        let userId = null; // To store the authenticated user ID
-        let isAuthReady = false; // Flag to indicate if auth state is known
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            const tableBody = document.getElementById('table-body');
-            const inputA3 = document.getElementById('inputA3');
-            const inputD3 = document.getElementById('inputD3');
-            const inputE3 = document.getElementById('inputE3');
-            const submitButton = document.getElementById('submitButton'); // Get the new button
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const errorDisplay = document.getElementById('error-display');
-            const digitalClock = document.getElementById('digital-clock');
-
-
-            // Options for dropdowns
-            const reporterNames = ["שונית", "אורי", "יעקב", "משה"];
-            const journalAssignments = ["חרבות ברזל", "תרגיל", "שריפה", "שגרה", "אחר"];
-
-            // Variable to store the last selected reporter and journal values
-            let lastReporterValue = '';
-            let lastJournalValue = '';
-
-            // Function to update digital clock
-            function updateClock() {
+            // Sets default date and time in the input fields
+            const setDefaultDateTime = () => {
                 const now = new Date();
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                digitalClock.textContent = `${hours}:${minutes}`;
-            }
-            setInterval(updateClock, 1000); // Update every second
-            updateClock(); // Initial call
-
-            // Helper to parse DD/MM/YYYY and HH:MM into a Date object
-            function parseDateTime(dateStr, timeStr) {
-                if (!dateStr || !timeStr) return null;
-                const [day, month, year] = dateStr.split('/').map(Number);
-                const timeParts = timeStr.split(':').map(Number);
-                const hours = timeParts[0];
-                const minutes = timeParts[1];
-                const seconds = 0; // Always 0 as we remove seconds
-
-                // Month is 0-indexed in JavaScript Date constructor (January is 0, December is 11)
-                const date = new Date(year, month - 1, day, hours, minutes, seconds);
-                return isNaN(date.getTime()) ? null : date; // Return null if date is invalid
-            }
-
-            // Function to show/hide loading indicator
-            function showLoading(show) {
-                if (show) {
-                    loadingIndicator.classList.add('show');
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                newDateInput.value = `${year}-${month}-${day}`;
+                
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                newTimeInput.value = `${hours}:${minutes}`;
+            };
+            
+            // Renders the table content based on the reports array
+            const renderTable = () => {
+                tableBody.innerHTML = '';
+                if (reports.length === 0) {
+                    tableBody.appendChild(emptyStateRow);
                 } else {
-                    loadingIndicator.classList.remove('show');
-                }
-            }
-
-            // Function to create a select element with given options
-            function createSelectElement(options, selectedValue = '', className = '', dataField = '') {
-                const select = document.createElement('select');
-                select.className = className; // Add a class for easier targeting
-                if (dataField) {
-                    select.dataset.field = dataField; // Set data-field attribute
-                }
-
-                const emptyOption = document.createElement('option');
-                emptyOption.value = '';
-                emptyOption.textContent = ''; // Empty text for placeholder
-                select.appendChild(emptyOption);
-
-                options.forEach(optionText => {
-                    const option = document.createElement('option');
-                    option.value = optionText;
-                    option.textContent = optionText;
-                    if (optionText === selectedValue) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                });
-
-                // Attach event listener for change on selects
-                select.addEventListener('change', handleCellEdit);
-                return select;
-            }
-
-            // Function to auto-resize textarea based on content
-            function autoResizeTextarea(textarea) {
-                if (textarea) {
-                    textarea.style.height = 'auto'; // Reset height to recalculate
-                    textarea.style.height = (textarea.scrollHeight) + 'px'; // Set height to scrollHeight
-                }
-            }
-
-            // Function to handle cell edits and update Firestore
-            async function handleCellEdit(event) {
-                const target = event.target;
-                const row = target.closest('tr');
-                const docId = row.dataset.id;
-                const fieldName = target.dataset.field; // e.g., 'description', 'date', 'time', 'reporter', 'journal'
-                let newValue = target.value;
-
-                // For textarea, also auto-resize on input
-                if (target.tagName === 'TEXTAREA') {
-                    autoResizeTextarea(target);
-                }
-
-                if (!docId || !fieldName) {
-                    console.error("Missing docId or fieldName for cell edit. Cannot update Firestore.");
-                    return;
-                }
-
-                showLoading(true);
-                try {
-                    const docRef = doc(db, `artifacts/${appId}/public/data/events`, docId);
-                    let updateData = { [fieldName]: newValue };
-
-                    // If date or time is edited, reconstruct eventTimestamp for sorting
-                    if (fieldName === 'date' || fieldName === 'time') {
-                        // Get current values of BOTH date and time fields from the row
-                        const currentDateInput = row.querySelector('input[data-field="date"]');
-                        const currentTimeInput = row.querySelector('input[data-field="time"]');
-
-                        const currentDateStr = currentDateInput ? currentDateInput.value : '';
-                        const currentTimeStr = currentTimeInput ? currentTimeInput.value : '';
-
-                        const fullDateTime = parseDateTime(currentDateStr, currentTimeStr);
-                        if (fullDateTime) {
-                            updateData.eventTimestamp = fullDateTime.getTime();
-                        } else {
-                            console.warn("Could not parse date/time for eventTimestamp calculation:", currentDateStr, currentTimeStr, "for docId:", docId);
-                            // If parsing fails, ensure eventTimestamp is not set to an invalid value
-                            // or remove it if the date/time is invalid.
-                            updateData.eventTimestamp = null; // Set to null if parsing fails
-                        }
-                    }
-
-                    await updateDoc(docRef, updateData);
-                    console.log(`Document ${docId} field ${fieldName} updated. New eventTimestamp: ${updateData.eventTimestamp || 'N/A'}`);
-                } catch (error) {
-                    console.error("Error updating document in Firestore:", error);
-                    errorDisplay.classList.add('show');
-                } finally {
-                    showLoading(false);
-                }
-            }
-
-
-            // Function to update cell numbers dynamically (excluding the input form area)
-            function updateCellNumbers() {
-                // Update header-top-left cell number (A2)
-                const headerTopLeft = document.getElementById('header-top-left');
-                let headerCellNumberSpan = headerTopLeft.querySelector('.cell-number');
-                if (!headerCellNumberSpan) {
-                    headerCellNumberSpan = document.createElement('span');
-                    headerCellNumberSpan.className = 'cell-number';
-                    headerTopLeft.appendChild(headerCellNumberSpan);
-                }
-                headerCellNumberSpan.textContent = 'A2';
-
-                // Update cell numbers for table headers (row 2)
-                const headerRow = document.querySelector('thead tr');
-                const columnLetters = ['A', 'B', 'C', 'D', 'E'];
-                Array.from(headerRow.children).forEach((th, colIndex) => {
-                    let cellNumberSpan = th.querySelector('.cell-number');
-                    if (!cellNumberSpan) {
-                        cellNumberSpan = document.createElement('span');
-                        cellNumberSpan.className = 'cell-number';
-                        th.appendChild(cellNumberSpan);
-                    }
-                    // Headers are conceptually in row 2
-                    cellNumberSpan.textContent = `${columnLetters[colIndex]}2`;
-                });
-
-                // Update cell numbers for data rows (starting from conceptual row 4, as A3 is the input form)
-                const rows = tableBody.getElementsByTagName('tr');
-                Array.from(rows).forEach((row, rowIndex) => {
-                    // Data rows start from conceptual row 4 in the Excel sheet (after A2 header and A3 input form)
-                    const conceptualRowNumber = rowIndex + 4;
-                    Array.from(row.children).forEach((cell, colIndex) => {
-                        let cellNumberSpan = cell.querySelector('.cell-number');
-                        if (!cellNumberSpan) {
-                            cellNumberSpan = document.createElement('span');
-                            cellNumberSpan.className = 'cell-number';
-                            cell.appendChild(cellNumberSpan);
-                        }
-                        cellNumberSpan.textContent = `${columnLetters[colIndex]}${conceptualRowNumber}`;
-                    });
-                });
-            }
-
-            // --- Firebase Authentication ---
-            if (isFirebaseInitialized) {
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("User signed in:", userId);
-                        isAuthReady = true;
-                        setupFirestoreListener(); // Start listening to Firestore once authenticated
-                    } else {
-                        // Sign in anonymously if no user is found
-                        try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token !== null) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (error) {
-                            console.error("Firebase auth error during anonymous sign-in:", error);
-                            errorDisplay.classList.add('show'); // Show user-friendly error
-                        }
-                    }
-                });
-            } else {
-                console.error("Firebase not initialized. Cannot proceed with authentication or Firestore operations.");
-                errorDisplay.classList.add('show'); // Show user-friendly error
-            }
-
-
-            // --- Firestore Realtime Listener Setup ---
-            function setupFirestoreListener() {
-                if (!isAuthReady || !isFirebaseInitialized) {
-                    console.warn("Auth not ready or Firebase not initialized, cannot set up Firestore listener.");
-                    return;
-                }
-
-                showLoading(true);
-                // Path for public data: /artifacts/{appId}/public/data/events
-                const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
-                // Query now orders by eventTimestamp for dynamic sorting
-                const q = query(eventsCollectionRef, orderBy('eventTimestamp', 'desc'));
-
-                onSnapshot(q, (snapshot) => {
-                    tableBody.innerHTML = ''; // Clear current table content
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
+                    reports.forEach((report, index) => {
                         const row = document.createElement('tr');
-                        row.dataset.id = doc.id; // Store Firestore document ID on the row
-
-                        // A column (description)
-                        const tdDescription = document.createElement('td');
-                        tdDescription.className = 'col-description';
-                        const descriptionTextarea = document.createElement('textarea');
-                        descriptionTextarea.className = 'cell-input';
-                        descriptionTextarea.value = data.description || '';
-                        descriptionTextarea.rows = 1;
-                        descriptionTextarea.dataset.field = 'description'; // Add data-field attribute
-                        descriptionTextarea.addEventListener('input', () => autoResizeTextarea(descriptionTextarea)); // Auto-resize on input
-                        descriptionTextarea.addEventListener('blur', handleCellEdit); // Save on blur
-                        tdDescription.appendChild(descriptionTextarea);
-                        row.appendChild(tdDescription);
-                        autoResizeTextarea(descriptionTextarea); // Auto-resize immediately after setting value
-
-                        // B column (date)
-                        const tdDate = document.createElement('td');
-                        tdDate.className = 'col-date';
-                        const dateInput = document.createElement('input');
-                        dateInput.type = 'text';
-                        dateInput.className = 'cell-input date-picker'; // Add class for Flatpickr
-                        dateInput.value = data.date || '';
-                        dateInput.dataset.field = 'date'; // Add data-field attribute
-                        tdDate.appendChild(dateInput);
-                        row.appendChild(tdDate);
-
-                        // C column (time)
-                        const tdTime = document.createElement('td');
-                        tdTime.className = 'col-time';
-                        const timeInput = document.createElement('input');
-                        timeInput.type = 'text';
-                        timeInput.className = 'cell-input time-picker'; // Add class for Flatpickr
-                        timeInput.value = data.time || '';
-                        timeInput.dataset.field = 'time'; // Add data-field attribute
-                        tdTime.appendChild(timeInput);
-                        row.appendChild(tdTime);
-
-                        // D column (reporter)
-                        const tdReporter = document.createElement('td');
-                        tdReporter.className = 'dropdown-cell col-reporter';
-                        tdReporter.appendChild(createSelectElement(reporterNames, data.reporter || '', 'reporter-name-select', 'reporter')); // Pass 'reporter' as dataField
-                        row.appendChild(tdReporter);
-
-                        // E column (journal)
-                        const tdJournal = document.createElement('td');
-                        tdJournal.className = 'dropdown-cell col-journal';
-                        tdJournal.appendChild(createSelectElement(journalAssignments, data.journal || '', 'journal-assignment-select', 'journal')); // Pass 'journal' as dataField
-                        row.appendChild(tdJournal);
-
+                        row.className = 'hover:bg-[#F8F5F1]';
+                        row.innerHTML = `
+                            <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
+                            <td class="table-cell">${new Date(report.date).toLocaleDateString('he-IL')}</td>
+                            <td class="table-cell">${report.time}</td>
+                            <td class="table-cell">${report.reporter}</td>
+                            <td class="table-cell">${report.logType}</td>
+                            <td class="table-cell text-center whitespace-nowrap">
+                                <button data-index="${index}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn ml-2">ערוך</button>
+                                <button data-index="${index}" class="text-red-500 hover:text-red-700 font-semibold delete-btn">מחק</button>
+                            </td>
+                        `;
                         tableBody.appendChild(row);
                     });
-
-                    // Initialize Flatpickr on newly added date and time inputs
-                    // Ensure window.flatpickr is used for global access
-                    if (window.flatpickr) {
-                        window.flatpickr(".date-picker", {
-                            dateFormat: "d/m/Y",
-                            locale: "he",
-                            onChange: function(selectedDates, dateStr, instance) {
-                                // Manually trigger handleCellEdit on change for date picker
-                                const event = new Event('blur', { bubbles: true }); // Use blur to trigger save
-                                instance.input.dispatchEvent(event);
-                            }
-                        });
-                        window.flatpickr(".time-picker", {
-                            enableTime: true,
-                            noCalendar: true,
-                            dateFormat: "H:i", // Format without seconds
-                            time_24hr: true,
-                            locale: "he",
-                             onChange: function(selectedDates, dateStr, instance) {
-                                // Manually trigger handleCellEdit on change for time picker
-                                const event = new Event('blur', { bubbles: true }); // Use blur to trigger save
-                                instance.input.dispatchEvent(event);
-                            }
-                        });
-                    } else {
-                        console.warn("Flatpickr library not loaded. Date/time pickers may not initialize.");
-                    }
-
-
-                    updateCellNumbers(); // Update cell numbers after all rows are rendered
-                    showLoading(false);
-                }, (error) => {
-                    console.error("Error listening to Firestore:", error);
-                    showLoading(false);
-                    // Optionally display an error message to the user
-                    errorDisplay.classList.add('show'); // Show user-friendly error
-                });
-            }
-
-
-            // --- Function to handle submission logic (used by both Enter in textarea and Submit button) ---
-            async function handleSubmit() {
-                console.log("handleSubmit triggered."); // Log when function is called
-                showLoading(true);
-
-                // Ensure Firebase is ready before attempting Firestore operations
-                if (!isAuthReady || !isFirebaseInitialized || !db || !auth || !userId) {
-                    console.error("Firebase is not fully initialized or authenticated. isAuthReady:", isAuthReady, "isFirebaseInitialized:", isFirebaseInitialized, "userId:", userId);
-                    showLoading(false);
-                    errorDisplay.classList.add('show'); // Show user-friendly error
-                    return;
                 }
-                console.log("Firebase is ready. Proceeding with submission.");
+            };
 
-                const enteredText = inputA3.value;
-                const reporterNameValue = inputD3.value; // Get value from D3 select in the form area
-                const journalAssignmentValue = inputE3.value; // Get value from E3 select in the form area
+            // Clears the input fields and resets the form to "add new report" mode
+            const resetForm = () => {
+                generalTextInput.value = '';
+                setDefaultDateTime(); 
+                generalTextInput.focus();
+                editingReportIndex = null;
+                mainActionBtn.textContent = 'הזן';
+                cancelEditBtn.classList.add('hidden');
+                inputErrorMessage.textContent = '';
+                // Set reporter/logType dropdowns back to their default selected options
+                // (This is implicitly handled if the user didn't change them from previous state)
+            };
 
-                // Only proceed if description is not empty
-                if (enteredText.trim() === '') {
-                    console.warn("תיאור האירוע לא יכול להיות ריק. (Description cannot be empty)");
-                    showLoading(false);
+            // Adds a new report
+            const addReport = () => {
+                const description = generalTextInput.value.trim();
+                const date = newDateInput.value;
+                const time = newTimeInput.value;
+                const reporter = filterReporter.value; // Get from dropdown
+                const logType = filterLogType.value;   // Get from dropdown
+
+                if (!description || !date || !time) {
+                    inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
+                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
 
-                const now = new Date();
-                const date = now.toLocaleDateString('he-IL');
-                // Use hour: '2-digit', minute: '2-digit' to remove seconds
-                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }); 
+                reports.push({ description, date, time, reporter, logType });
+                renderTable();
+                resetForm(); // Reset form after adding
+            };
 
-                // Calculate eventTimestamp for the new entry
-                const eventTimestamp = parseDateTime(date, time)?.getTime() || null;
+            // Updates an existing report
+            const updateReport = () => {
+                const description = generalTextInput.value.trim();
+                const date = newDateInput.value;
+                const time = newTimeInput.value;
+                const reporter = filterReporter.value; // Get from dropdown
+                const logType = filterLogType.value;   // Get from dropdown
 
-                const eventData = {
-                    description: enteredText,
-                    date: date,
-                    time: time,
-                    reporter: reporterNameValue,
-                    journal: journalAssignmentValue,
-                    timestamp: serverTimestamp(), // Keep serverTimestamp for original creation order if needed
-                    eventTimestamp: eventTimestamp // New field for sorting by actual event date/time
-                };
-
-                try {
-                    // Add the new event data to Firestore
-                    const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
-                    await addDoc(eventsCollectionRef, eventData);
-                    console.log("Document successfully written to Firestore!");
-
-                    // Clear the input form area A3 textarea
-                    inputA3.value = '';
-                    autoResizeTextarea(inputA3); // Reset textarea height
-
-                    // Update last selected values for D3 and E3
-                    lastReporterValue = reporterNameValue;
-                    lastJournalValue = journalAssignmentValue;
-
-                    // Set the D3 and E3 selects in the input form area to the last selected values
-                    inputD3.value = lastReporterValue;
-                    inputE3.value = lastJournalValue;
-
-                    inputA3.focus(); // Focus back on A3
-                } catch (error) {
-                    console.error("Error adding document to Firestore: ", error);
-                    errorDisplay.classList.add('show'); // Show user-friendly error
-                } finally {
-                    showLoading(false);
+                if (!description || !date || !time) {
+                    inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
+                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                    return;
                 }
-            }
 
+                if (editingReportIndex !== null) {
+                    reports[editingReportIndex] = { description, date, time, reporter, logType };
+                    renderTable();
+                    resetForm(); // Reset form after updating
+                }
+            };
 
-            // --- Event Listeners ---
-            // Allow Enter key to create new lines in A3 textarea (Shift+Enter)
-            // Or submit on plain Enter
-            inputA3.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault(); // Prevent default Enter (which is newline in textarea)
-                    handleSubmit();
+            // Handles the click on the main action button (Add/Update)
+            mainActionBtn.addEventListener('click', () => {
+                if (editingReportIndex === null) {
+                    addReport();
+                } else {
+                    updateReport();
                 }
             });
 
-            // Handle submission when the "הזן" button is clicked
-            submitButton.addEventListener('click', handleSubmit);
+            // Handles the click on the cancel edit button
+            cancelEditBtn.addEventListener('click', resetForm);
 
-            // Auto-resize the initial inputA3 on load
-            autoResizeTextarea(inputA3);
+            // Event listener for filter dropdowns (implicitly sets default for new entries)
+            // No direct action needed here other than potential future filtering of the table display
+            
+            // Event delegation for table actions (edit and delete)
+            tableBody.addEventListener('click', (e) => {
+                // Delete button
+                if (e.target.classList.contains('delete-btn')) {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    reports.splice(index, 1);
+                    renderTable();
+                    resetForm(); // Reset form in case deleted item was being edited
+                }
+                // Edit button
+                if (e.target.classList.contains('edit-btn')) {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    const reportToEdit = reports[index];
+                    
+                    // Populate inputs with report data
+                    generalTextInput.value = reportToEdit.description;
+                    newDateInput.value = reportToEdit.date;
+                    newTimeInput.value = reportToEdit.time;
+                    filterReporter.value = reportToEdit.reporter; // Update dropdown
+                    filterLogType.value = reportToEdit.logType;   // Update dropdown
+                    
+                    editingReportIndex = index; // Set editing mode
+                    mainActionBtn.textContent = 'עדכן דיווח'; // Change button text
+                    cancelEditBtn.classList.remove('hidden'); // Show cancel button
+                    generalTextInput.focus(); // Focus on description for editing
+                }
+            });
 
-            // Set initial values for D3 and E3 selects if they are empty
-            // This happens on page load or if values weren't set by lastReporterValue/lastJournalValue
-            // (e.g., first load of the app without prior submission)
-            // Note: This logic might need refinement if 'lastReporterValue' / 'lastJournalValue'
-            // are expected to persist across sessions (e.g., using localStorage).
-            // For now, they reset on page load.
-            if (inputD3.value === '' && lastReporterValue !== '') {
-                inputD3.value = lastReporterValue;
-            }
-            if (inputE3.value === '' && lastJournalValue !== '') {
-                inputE3.value = lastJournalValue;
-            }
+            // Initialize default date and time, and render table on load
+            setDefaultDateTime();
+            renderTable();
         });
     </script>
 </body>
