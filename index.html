@@ -128,20 +128,20 @@
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
         }
 
-        /* Responsive Column Widths */
+        /* Responsive Column Widths and Visibility */
         /* Default for mobile (smaller screens) */
-        .col-description { width: 35%; } /* תיאור האירוע */
-        .col-date { width: 15%; } /* תאריך */
-        .col-time { width: 15%; } /* שעה */
-        .col-reporter { width: 20%; } /* שם המדווח */
-        .col-journal { width: 15%; } /* שיוך יומן */
+        .col-description { width: 50%; } /* תיאור האירוע - Increased for primary input */
+        .col-date { display: none; } /* תאריך - Hidden on mobile */
+        .col-time { display: none; } /* שעה - Hidden on mobile */
+        .col-reporter { width: 25%; } /* שם המדווח */
+        .col-journal { width: 25%; } /* שיוך יומן */
 
 
-        /* On medium screens (tablets and up), adjust widths */
+        /* On medium screens (tablets and up), adjust widths and make date/time visible */
         @media (min-width: 768px) { /* md breakpoint */
             .col-description { width: 25%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
+            .col-date { display: table-cell; width: 15%; } /* Make visible */
+            .col-time { display: table-cell; width: 15%; } /* Make visible */
             .col-reporter { width: 25%; }
             .col-journal { width: 20%; }
         }
@@ -149,8 +149,8 @@
         /* On large screens (desktops and up), adjust widths */
         @media (min-width: 1024px) { /* lg breakpoint */
             .col-description { width: 30%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
+            .col-date { display: table-cell; width: 15%; } /* Ensure visible */
+            .col-time { display: table-cell; width: 15%; } /* Ensure visible */
             .col-reporter { width: 20%; }
             .col-journal { width: 20%; }
         }
@@ -281,7 +281,7 @@
                     <td class="col-date">
                         <input type="text" class="cell-input" value="26/05/2025">
                     </td>
-                    <td class="col-time">
+                    <td>
                         <input type="text" class="cell-input" value="21:28:20">
                     </td>
                     <td class="dropdown-cell col-reporter">
