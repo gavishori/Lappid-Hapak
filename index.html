@@ -477,8 +477,8 @@
                             await signInAnonymously(auth);
                         }
                     } catch (error) {
-                        console.error("Firebase auth error:", error);
-                        // Handle error (e.g., show message to user)
+                        console.error("Firebase auth error during anonymous sign-in:", error);
+                        // Optionally display a user-friendly error message
                     }
                 }
             });
@@ -486,7 +486,8 @@
             // --- Firestore Realtime Listener Setup ---
             function setupFirestoreListener() {
                 if (!isAuthReady) {
-                    console.warn("Auth not ready, cannot set up Firestore listener.");
+                    console.warn("Auth not ready, cannot set up Firestore listener. Retrying...");
+                    // Potentially add a retry mechanism or user feedback
                     return;
                 }
 
@@ -552,7 +553,17 @@
 
             // --- Function to handle submission logic (used by both Enter in textarea and Submit button) ---
             async function handleSubmit() {
+                console.log("handleSubmit triggered."); // Log when function is called
                 showLoading(true);
+
+                // Ensure Firebase is ready before attempting Firestore operations
+                if (!isAuthReady || !db || !auth || !userId) {
+                    console.error("Firebase is not fully initialized or authenticated. isAuthReady:", isAuthReady, "userId:", userId);
+                    showLoading(false);
+                    // Provide user feedback if needed
+                    return;
+                }
+                console.log("Firebase is ready. Proceeding with submission.");
 
                 const enteredText = inputA3.value;
                 const reporterNameValue = inputD3.value; // Get value from D3 select in the form area
@@ -560,7 +571,7 @@
 
                 // Only proceed if description is not empty
                 if (enteredText.trim() === '') {
-                    console.warn("תיאור האירוע לא יכול להיות ריק.");
+                    console.warn("תיאור האירוע לא יכול להיות ריק. (Description cannot be empty)");
                     showLoading(false);
                     return;
                 }
@@ -582,7 +593,7 @@
                     // Add the new event data to Firestore
                     const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
                     await addDoc(eventsCollectionRef, eventData);
-                    console.log("Document successfully written!");
+                    console.log("Document successfully written to Firestore!");
 
                     // Clear the input form area A3 textarea
                     inputA3.value = '';
@@ -598,8 +609,8 @@
 
                     inputA3.focus(); // Focus back on A3
                 } catch (error) {
-                    console.error("Error adding document: ", error);
-                    // Optionally display an error message to the user
+                    console.error("Error adding document to Firestore: ", error);
+                    // You might want to display a user-friendly error message here as well
                 } finally {
                     showLoading(false);
                 }
@@ -607,11 +618,11 @@
 
 
             // --- Event Listeners ---
-            // Allow Enter key to create new lines in A3 textarea
-            // But still handle submission on Enter if user desires a quick submit on last line
+            // Allow Enter key to create new lines in A3 textarea (Shift+Enter)
+            // Or submit on plain Enter
             inputA3.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' && !event.shiftKey) { // Submit on Enter, allow Shift+Enter for new line
-                    event.preventDefault(); // Prevent default Enter (which is new line)
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault(); // Prevent default Enter (which is newline in textarea)
                     handleSubmit();
                 }
             });
@@ -621,6 +632,16 @@
 
             // Auto-resize the initial inputA3 on load
             autoResizeTextarea(inputA3);
+
+            // Set initial values for D3 and E3 selects if they are empty
+            // This happens on page load or if values weren't set by lastReporterValue/lastJournalValue
+            // (e.g., first load of the app without prior submission)
+            if (inputD3.value === '' && lastReporterValue !== '') {
+                inputD3.value = lastReporterValue;
+            }
+            if (inputE3.value === '' && lastJournalValue !== '') {
+                inputE3.value = lastJournalValue;
+            }
         });
     </script>
 </body>
