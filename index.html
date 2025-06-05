@@ -436,11 +436,14 @@
             let lastReporterValue = '';
             let lastJournalValue = '';
 
-            // Helper to parse DD/MM/YYYY and HH:MM:SS into a Date object
+            // Helper to parse DD/MM/YYYY and HH:MM or HH:MM:SS into a Date object
             function parseDateTime(dateStr, timeStr) {
                 if (!dateStr || !timeStr) return null;
                 const [day, month, year] = dateStr.split('/').map(Number);
-                const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+                const timeParts = timeStr.split(':').map(Number);
+                const hours = timeParts[0];
+                const minutes = timeParts[1];
+                const seconds = timeParts.length > 2 ? timeParts[2] : 0; // Handle HH:MM or HH:MM:SS
 
                 // Month is 0-indexed in JavaScript Date constructor (January is 0, December is 11)
                 const date = new Date(year, month - 1, day, hours, minutes, seconds);
@@ -479,7 +482,8 @@
                     select.appendChild(option);
                 });
 
-                select.addEventListener('change', handleCellEdit); // Add change listener to selects
+                // Attach event listener for change on selects
+                select.addEventListener('change', handleCellEdit);
                 return select;
             }
 
@@ -499,7 +503,7 @@
                 const fieldName = target.dataset.field; // e.g., 'description', 'date', 'time', 'reporter', 'journal'
                 let newValue = target.value;
 
-                // For textarea, also auto-resize on blur/input
+                // For textarea, also auto-resize on input
                 if (target.tagName === 'TEXTAREA') {
                     autoResizeTextarea(target);
                 }
