@@ -374,7 +374,7 @@
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase (provided by Canvas environment)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -391,10 +391,14 @@
             appId: "1:164837194636:web:068ea1f14f303d2bbb34a9"
         };
 
-        if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "default-project-id") {
-            console.error("Firebase projectId or apiKey is missing/default. Using fallback configuration. Please ensure your Firebase project details are correctly configured in the Canvas variables.");
-            firebaseConfig = { ...defaultFirebaseConfig, ...firebaseConfig }; // Merge to preserve any provided values
+        // Check if firebaseConfig is provided by Canvas and is valid, otherwise use defaultFirebaseConfig.
+        // The condition `firebaseConfig.projectId === "default-project-id"` is specifically to catch
+        // cases where Canvas *might* provide a projectId but it's our placeholder.
+        if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "default-project-id" || !firebaseConfig.apiKey) {
+             console.warn("Firebase config is missing or contains placeholder values. Attempting to use provided default configuration. Please ensure your Firebase project details are correctly configured.");
+            firebaseConfig = { ...defaultFirebaseConfig, ...firebaseConfig }; // Merge to ensure default values fill gaps
         }
+
 
         let app, db, auth;
         let isFirebaseInitialized = false;
@@ -442,9 +446,13 @@
             }
 
             // Function to create a select element with given options
-            function createSelectElement(options, selectedValue = '', className = '') {
+            function createSelectElement(options, selectedValue = '', className = '', dataField = '') {
                 const select = document.createElement('select');
                 select.className = className; // Add a class for easier targeting
+                if (dataField) {
+                    select.dataset.field = dataField; // Set data-field attribute
+                }
+
                 const emptyOption = document.createElement('option');
                 emptyOption.value = '';
                 emptyOption.textContent = ''; // Empty text for placeholder
@@ -459,6 +467,8 @@
                     }
                     select.appendChild(option);
                 });
+
+                select.addEventListener('change', handleCellEdit); // Add change listener to selects
                 return select;
             }
 
@@ -469,6 +479,37 @@
                     textarea.style.height = (textarea.scrollHeight) + 'px'; // Set height to scrollHeight
                 }
             }
+
+            // Function to handle cell edits and update Firestore
+            async function handleCellEdit(event) {
+                const target = event.target;
+                const docId = target.closest('tr').dataset.id;
+                const fieldName = target.dataset.field; // Get the field name from data-field attribute
+                let newValue = target.value;
+
+                // For textarea, also auto-resize on blur/input
+                if (target.tagName === 'TEXTAREA') {
+                    autoResizeTextarea(target);
+                }
+
+                if (!docId || !fieldName) {
+                    console.error("Missing docId or fieldName for cell edit. Cannot update Firestore.");
+                    return;
+                }
+
+                showLoading(true);
+                try {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/events`, docId);
+                    await updateDoc(docRef, { [fieldName]: newValue });
+                    console.log(`Document ${docId} field ${fieldName} updated to ${newValue}`);
+                } catch (error) {
+                    console.error("Error updating document in Firestore:", error);
+                    errorDisplay.classList.add('show');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
 
             // Function to update cell numbers dynamically (excluding the input form area)
             function updateCellNumbers() {
@@ -560,41 +601,55 @@
                         const row = document.createElement('tr');
                         row.dataset.id = doc.id; // Store Firestore document ID on the row
 
-                        row.innerHTML = `
-                            <td class="col-description"></td>
-                            <td class="col-date"></td>
-                            <td class="col-time"></td>
-                            <td class="dropdown-cell col-reporter"></td>
-                            <td class="dropdown-cell col-journal"></td>
-                        `;
-
-                        // Populate A column (description) with textarea
+                        // A column (description)
+                        const tdDescription = document.createElement('td');
+                        tdDescription.className = 'col-description';
                         const descriptionTextarea = document.createElement('textarea');
                         descriptionTextarea.className = 'cell-input';
                         descriptionTextarea.value = data.description || '';
                         descriptionTextarea.rows = 1;
-                        row.children[0].appendChild(descriptionTextarea);
-                        autoResizeTextarea(descriptionTextarea); // Auto-resize immediately
+                        descriptionTextarea.dataset.field = 'description'; // Add data-field attribute
+                        descriptionTextarea.addEventListener('input', () => autoResizeTextarea(descriptionTextarea)); // Auto-resize on input
+                        descriptionTextarea.addEventListener('blur', handleCellEdit); // Save on blur
+                        tdDescription.appendChild(descriptionTextarea);
+                        row.appendChild(tdDescription);
+                        autoResizeTextarea(descriptionTextarea); // Auto-resize immediately after setting value
 
-                        // Populate B column (date) with input
+                        // B column (date)
+                        const tdDate = document.createElement('td');
+                        tdDate.className = 'col-date';
                         const dateInput = document.createElement('input');
                         dateInput.type = 'text';
                         dateInput.className = 'cell-input';
                         dateInput.value = data.date || '';
-                        row.children[1].appendChild(dateInput);
+                        dateInput.dataset.field = 'date'; // Add data-field attribute
+                        dateInput.addEventListener('blur', handleCellEdit); // Save on blur
+                        tdDate.appendChild(dateInput);
+                        row.appendChild(tdDate);
 
-                        // Populate C column (time) with input
+                        // C column (time)
+                        const tdTime = document.createElement('td');
+                        tdTime.className = 'col-time';
                         const timeInput = document.createElement('input');
                         timeInput.type = 'text';
                         timeInput.className = 'cell-input';
                         timeInput.value = data.time || '';
-                        row.children[2].appendChild(timeInput);
+                        timeInput.dataset.field = 'time'; // Add data-field attribute
+                        timeInput.addEventListener('blur', handleCellEdit); // Save on blur
+                        tdTime.appendChild(timeInput);
+                        row.appendChild(tdTime);
 
-                        // Populate D column (reporter) with select
-                        row.children[3].appendChild(createSelectElement(reporterNames, data.reporter || '', 'reporter-name-select'));
+                        // D column (reporter)
+                        const tdReporter = document.createElement('td');
+                        tdReporter.className = 'dropdown-cell col-reporter';
+                        tdReporter.appendChild(createSelectElement(reporterNames, data.reporter || '', 'reporter-name-select', 'reporter')); // Pass 'reporter' as dataField
+                        row.appendChild(tdReporter);
 
-                        // Populate E column (journal) with select
-                        row.children[4].appendChild(createSelectElement(journalAssignments, data.journal || '', 'journal-assignment-select'));
+                        // E column (journal)
+                        const tdJournal = document.createElement('td');
+                        tdJournal.className = 'dropdown-cell col-journal';
+                        tdJournal.appendChild(createSelectElement(journalAssignments, data.journal || '', 'journal-assignment-select', 'journal')); // Pass 'journal' as dataField
+                        row.appendChild(tdJournal);
 
                         tableBody.appendChild(row);
                     });
