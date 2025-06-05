@@ -436,6 +436,17 @@
             let lastReporterValue = '';
             let lastJournalValue = '';
 
+            // Helper to parse DD/MM/YYYY and HH:MM:SS into a Date object
+            function parseDateTime(dateStr, timeStr) {
+                if (!dateStr || !timeStr) return null;
+                const [day, month, year] = dateStr.split('/').map(Number);
+                const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+
+                // Month is 0-indexed in JavaScript Date constructor (January is 0, December is 11)
+                const date = new Date(year, month - 1, day, hours, minutes, seconds);
+                return isNaN(date.getTime()) ? null : date; // Return null if date is invalid
+            }
+
             // Function to show/hide loading indicator
             function showLoading(show) {
                 if (show) {
@@ -483,8 +494,9 @@
             // Function to handle cell edits and update Firestore
             async function handleCellEdit(event) {
                 const target = event.target;
-                const docId = target.closest('tr').dataset.id;
-                const fieldName = target.dataset.field; // Get the field name from data-field attribute
+                const row = target.closest('tr');
+                const docId = row.dataset.id;
+                const fieldName = target.dataset.field; // e.g., 'description', 'date', 'time', 'reporter', 'journal'
                 let newValue = target.value;
 
                 // For textarea, also auto-resize on blur/input
@@ -500,8 +512,26 @@
                 showLoading(true);
                 try {
                     const docRef = doc(db, `artifacts/${appId}/public/data/events`, docId);
-                    await updateDoc(docRef, { [fieldName]: newValue });
-                    console.log(`Document ${docId} field ${fieldName} updated to ${newValue}`);
+                    let updateData = { [fieldName]: newValue };
+
+                    // If date or time is edited, reconstruct eventTimestamp for sorting
+                    if (fieldName === 'date' || fieldName === 'time') {
+                        const currentDateStr = row.querySelector('input[data-field="date"]').value;
+                        const currentTimeStr = row.querySelector('input[data-field="time"]').value;
+
+                        const fullDateTime = parseDateTime(currentDateStr, currentTimeStr);
+                        if (fullDateTime) {
+                            updateData.eventTimestamp = fullDateTime.getTime();
+                        } else {
+                            console.warn("Could not parse date/time for eventTimestamp calculation:", currentDateStr, currentTimeStr);
+                            // If parsing fails, you might want to remove the eventTimestamp or set it to null
+                            // to avoid issues, or use a default, depending on desired behavior.
+                            // For now, we'll just log a warning and not update eventTimestamp.
+                        }
+                    }
+
+                    await updateDoc(docRef, updateData);
+                    console.log(`Document ${docId} field ${fieldName} updated. New eventTimestamp: ${updateData.eventTimestamp || 'N/A'}`);
                 } catch (error) {
                     console.error("Error updating document in Firestore:", error);
                     errorDisplay.classList.add('show');
@@ -592,7 +622,8 @@
                 showLoading(true);
                 // Path for public data: /artifacts/{appId}/public/data/events
                 const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
-                const q = query(eventsCollectionRef, orderBy('timestamp', 'desc')); // Order by timestamp to get newest first
+                // Query now orders by eventTimestamp for dynamic sorting
+                const q = query(eventsCollectionRef, orderBy('eventTimestamp', 'desc'));
 
                 onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear current table content
@@ -690,8 +721,11 @@
                 }
 
                 const now = new Date();
-                const date = now.toLocaleDateString('he-IL');
-                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const date = now.toLocaleDateString('he-IL'); // DD/MM/YYYY
+                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); // HH:MM:SS
+
+                // Calculate eventTimestamp for the new entry
+                const eventTimestamp = parseDateTime(date, time)?.getTime() || null;
 
                 const eventData = {
                     description: enteredText,
@@ -699,7 +733,8 @@
                     time: time,
                     reporter: reporterNameValue,
                     journal: journalAssignmentValue,
-                    timestamp: serverTimestamp() // Firestore server timestamp for ordering
+                    timestamp: serverTimestamp(), // Keep serverTimestamp for original creation order if needed
+                    eventTimestamp: eventTimestamp // New field for sorting by actual event date/time
                 };
 
                 try {
