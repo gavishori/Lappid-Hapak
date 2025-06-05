@@ -128,20 +128,41 @@
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
         }
 
-        /* Responsive Column Widths and Visibility */
-        /* Default for mobile (smaller screens) */
-        .col-description { width: 50%; } /* תיאור האירוע - Increased for primary input */
-        .col-date { display: none; } /* תאריך - Hidden on mobile */
-        .col-time { display: none; } /* שעה - Hidden on mobile */
-        .col-reporter { width: 25%; } /* שם המדווח */
-        .col-journal { width: 25%; } /* שיוך יומן */
+        /* Responsive Column Widths and Visibility for table rows */
+        /* Default general widths for table data rows */
+        .col-description { width: 30%; }
+        .col-date { width: 15%; }
+        .col-time { width: 15%; }
+        .col-reporter { width: 20%; }
+        .col-journal { width: 20%; }
 
+        /* Mobile specific overrides for table data rows (max-width: 767px) */
+        @media (max-width: 767px) {
+            /* Hide date and time headers on mobile */
+            thead .col-date,
+            thead .col-time {
+                display: none;
+            }
 
-        /* On medium screens (tablets and up), adjust widths and make date/time visible */
+            /* Adjust widths for all table data rows on mobile */
+            td.col-description { width: 35%; }
+            td.col-date { display: table-cell; width: 15%; } /* Keep visible for data rows */
+            td.col-time { display: table-cell; width: 15%; } /* Keep visible for data rows */
+            td.col-reporter { width: 20%; }
+            td.col-journal { width: 15%; }
+        }
+
+        /* On medium screens (tablets and up), apply standard widths and ensure visibility */
         @media (min-width: 768px) { /* md breakpoint */
+            thead .col-date,
+            thead .col-time,
+            td.col-date,
+            td.col-time {
+                display: table-cell !important; /* Ensure visible for all rows */
+            }
             .col-description { width: 25%; }
-            .col-date { display: table-cell; width: 15%; } /* Make visible */
-            .col-time { display: table-cell; width: 15%; } /* Make visible */
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
             .col-reporter { width: 25%; }
             .col-journal { width: 20%; }
         }
@@ -149,22 +170,108 @@
         /* On large screens (desktops and up), adjust widths */
         @media (min-width: 1024px) { /* lg breakpoint */
             .col-description { width: 30%; }
-            .col-date { display: table-cell; width: 15%; } /* Ensure visible */
-            .col-time { display: table-cell; width: 15%; } /* Ensure visible */
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
             .col-reporter { width: 20%; }
             .col-journal { width: 20%; }
         }
 
+        /* Specific styling for the separate input form area */
+        .input-form-area {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            margin-bottom: 20px; /* Space between input area and table */
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box; /* Include padding in width */
+            display: flex;
+            flex-direction: column; /* Stack items vertically by default */
+            gap: 10px; /* Space between input elements */
+        }
+        .input-form-area .main-input-wrapper {
+            flex-grow: 1;
+        }
+        .input-form-area .select-group {
+            display: flex;
+            gap: 10px;
+        }
+        .input-form-area .select-group > div {
+            flex-basis: 50%; /* Each select wrapper takes half width */
+            flex-grow: 1;
+        }
+
+        /* Adjust input elements within the form area */
+        .input-form-area .cell-input,
+        .input-form-area .dropdown-cell select {
+            border: 1px solid #d1d5db; /* Lighter border for clean look */
+            background-color: #f9fafb; /* Very light background */
+        }
+        .input-form-area .dropdown-cell select {
+            min-height: 38px; /* Match textarea/input height */
+            padding-right: 30px; /* Space for custom arrow */
+        }
+
+        /* Mobile adjustments for the input form area */
+        @media (max-width: 767px) {
+            .input-form-area .select-group {
+                flex-direction: row; /* Keep selects side by side on small screens */
+            }
+            .input-form-area .select-group > div {
+                flex-basis: 50%;
+            }
+        }
+
+        /* Tablet/Desktop adjustments for the input form area (optional, can inherit from default) */
+        @media (min-width: 768px) {
+            .input-form-area {
+                flex-direction: column; /* Still stack textarea on top, selects below */
+                gap: 15px;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4">
-    <div class="table-container">
-        <!-- Top left header as seen in the image, conceptually A1/A2 -->
-        <div class="header-top-left" id="header-top-left">
-            הערכת מצב בשעה 13:00
-            <span class="cell-number">A2</span>
-        </div>
+    <!-- Top left header as seen in the image, conceptually A1/A2 -->
+    <div class="header-top-left" id="header-top-left">
+        הערכת מצב בשעה 13:00
+        <span class="cell-number">A2</span>
+    </div>
 
+    <!-- Separate input form area (Conceptual A3, D3, E3) -->
+    <div class="input-form-area">
+        <div class="main-input-wrapper">
+            <textarea class="cell-input" id="inputA3" rows="1" placeholder="תיאור האירוע"></textarea>
+        </div>
+        <div class="select-group">
+            <div>
+                <div class="dropdown-cell">
+                    <select class="reporter-name-select" id="inputD3">
+                        <option value="">שם המדווח</option>
+                        <option value="שונית">שונית</option>
+                        <option value="אורי">אורי</option>
+                        <option value="יעקב">יעקב</option>
+                        <option value="משה">משה</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <div class="dropdown-cell">
+                    <select class="journal-assignment-select" id="inputE3">
+                        <option value="">שיוך יומן</option>
+                        <option value="חרבות ברזל">חרבות ברזל</option>
+                        <option value="תרגיל">תרגיל</option>
+                        <option value="שריפה">שריפה</option>
+                        <option value="שגרה">שגרה</option>
+                        <option value="אחר">אחר</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container">
         <table class="min-w-full">
             <thead>
                 <tr>
@@ -187,34 +294,6 @@
                 </tr>
             </thead>
             <tbody id="table-body">
-                <!-- This will be the interactive row A3 -->
-                <tr>
-                    <td class="col-description">
-                        <textarea class="cell-input" id="inputA3" rows="1"></textarea>
-                    </td>
-                    <td class="col-date"></td>
-                    <td class="col-time"></td>
-                    <td class="dropdown-cell col-reporter">
-                        <!-- Added reporter name select to initial A3 row -->
-                        <select class="reporter-name-select">
-                            <option value=""></option>
-                            <option value="שונית">שונית</option>
-                            <option value="אורי">אורי</option>
-                            <option value="יעקב">יעקב</option>
-                            <option value="משה">משה</option>
-                        </select>
-                    </td>
-                    <td class="dropdown-cell col-journal">
-                        <select class="journal-assignment-select">
-                            <option value=""></option>
-                            <option value="חרבות ברזל">חרבות ברזל</option>
-                            <option value="תרגיל">תרגיל</option>
-                            <option value="שריפה">שריפה</option>
-                            <option value="שגרה">שגרה</option>
-                            <option value="אחר">אחר</option>
-                        </select>
-                    </td>
-                </tr>
                 <!-- Example Row 1 (original A3, now A4) -->
                 <tr>
                     <td class="col-description">
@@ -252,7 +331,7 @@
                     <td class="col-date">
                         <input type="text" class="cell-input" value="04/06/2025">
                     </td>
-                    <td class="col-time">
+                    <td>
                         <input type="text" class="cell-input" value="17:52:36">
                     </td>
                     <td class="dropdown-cell col-reporter">
@@ -268,7 +347,7 @@
                             <option value="חרבות ברזל">חרבות ברזל</option>
                             <option value="תרגיל">תרגיל</option>
                             <option value="שריפה">שריפה</option>
-                            <option value="שגרה">שגרה</option>
+                            <option value="שגרה">שגרה</d>
                             <option value="אחר">אחר</option>
                         </select>
                     </td>
@@ -304,10 +383,10 @@
                 </tr>
                 <!-- Example Row 4 (original A6, now A7) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1">תרגיל כיתת כוננות כולל הקפצה במערכת ה"נץ"</textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="26/05/2025">
                     </td>
                     <td>
@@ -339,7 +418,7 @@
                     <td class="col-date">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td class="col-time">
+                    <td>
                         <input type="text" class="cell-input" value="">
                     </td>
                     <td class="dropdown-cell col-reporter">
@@ -370,7 +449,7 @@
                     <td class="col-date">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td class="col-time">
+                    <td>
                         <input type="text" class="cell-input" value="">
                     </td>
                     <td class="dropdown-cell col-reporter">
@@ -400,7 +479,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const tableBody = document.getElementById('table-body');
-            let inputA3 = document.getElementById('inputA3'); // Use 'let' as this variable will be reassigned
+            // Re-map inputA3, inputD3, inputE3 to the elements in the new input-form-area
+            let inputA3 = document.getElementById('inputA3');
+            let inputD3 = document.getElementById('inputD3');
+            let inputE3 = document.getElementById('inputE3');
 
             // Options for dropdowns
             const reporterNames = ["שונית", "אורי", "יעקב", "משה"];
@@ -437,9 +519,6 @@
 
             // Function to update cell numbers dynamically
             function updateCellNumbers() {
-                const rows = tableBody.getElementsByTagName('tr');
-                const columnLetters = ['A', 'B', 'C', 'D', 'E']; // Assuming up to E column
-
                 // Update header-top-left cell number (A2)
                 const headerTopLeft = document.getElementById('header-top-left');
                 let headerCellNumberSpan = headerTopLeft.querySelector('.cell-number');
@@ -452,6 +531,7 @@
 
                 // Update cell numbers for table headers (row 2)
                 const headerRow = document.querySelector('thead tr');
+                const columnLetters = ['A', 'B', 'C', 'D', 'E'];
                 Array.from(headerRow.children).forEach((th, colIndex) => {
                     let cellNumberSpan = th.querySelector('.cell-number');
                     if (!cellNumberSpan) {
@@ -463,10 +543,13 @@
                     cellNumberSpan.textContent = `${columnLetters[colIndex]}2`;
                 });
 
-                // Update cell numbers for data rows (starting from conceptual row 3)
+                // The input form area now conceptually represents A3, D3, E3. No numbers directly on it.
+
+                // Update cell numbers for data rows (starting from conceptual row 4)
+                const rows = tableBody.getElementsByTagName('tr');
                 Array.from(rows).forEach((row, rowIndex) => {
-                    // Data rows start from conceptual row 3 in the Excel sheet
-                    const conceptualRowNumber = rowIndex + 3;
+                    // Data rows start from conceptual row 4 in the Excel sheet
+                    const conceptualRowNumber = rowIndex + 4;
                     Array.from(row.children).forEach((cell, colIndex) => {
                         let cellNumberSpan = cell.querySelector('.cell-number');
                         if (!cellNumberSpan) {
@@ -482,12 +565,12 @@
             // Initial update of cell numbers on page load
             updateCellNumbers();
 
-            // Auto-resize all existing textareas on load
+            // Auto-resize all existing textareas on load (including the new inputA3)
             document.querySelectorAll('textarea.cell-input').forEach(textarea => {
                 autoResizeTextarea(textarea);
             });
 
-            // Add input event listener to initial inputA3 for auto-resizing
+            // Add input event listener to inputA3 for auto-resizing
             inputA3.addEventListener('input', () => autoResizeTextarea(inputA3));
 
 
@@ -496,118 +579,72 @@
                 if (event.key === 'Enter') {
                     event.preventDefault(); // Prevent default Enter key behavior (e.g., form submission or newline in textarea)
 
-                    const enteredText = inputA3.value; // Get the text from the current A3 input
-                    const currentRow = inputA3.closest('tr'); // Get the current row (which is A3's row)
-
-                    // Capture the current values from D3 and E3 *before* they are moved/cleared
-                    const currentReporterSelect = currentRow.children[3] ? currentRow.children[3].querySelector('.reporter-name-select') : null;
-                    const currentJournalSelect = currentRow.children[4] ? currentRow.children[4].querySelector('.journal-assignment-select') : null;
-
-                    const reporterNameFromOldA3 = currentReporterSelect ? currentReporterSelect.value : '';
-                    const journalAssignmentFromOldA3 = currentJournalSelect ? currentJournalSelect.value : '';
-
-                    // Get data from the row below the old A3 (which is currentRow's next sibling, and will become A5)
-                    const nextRow = currentRow.nextElementSibling;
-                    let reporterNameFromOldA4 = '';
-                    let journalAssignmentFromOldA4 = '';
-
-                    if (nextRow) {
-                        const nextRowReporterSelect = nextRow.children[3] ? nextRow.children[3].querySelector('.reporter-name-select') : null;
-                        reporterNameFromOldA4 = nextRowReporterSelect ? nextRowReporterSelect.value : '';
-
-                        const nextRowJournalSelect = nextRow.children[4] ? nextRow.children[4].querySelector('.journal-assignment-select') : null;
-                        journalAssignmentFromOldA4 = nextRowJournalSelect ? nextRowJournalSelect.value : '';
-                    }
-
-                    // Determine values for the new A3 row based on fallback logic
-                    // If D3 or E3 from the old A3 had a value, use that. Otherwise, use the value from old A4.
-                    let newA3ReporterValue = reporterNameFromOldA3 || reporterNameFromOldA4;
-                    let newA3JournalValue = journalAssignmentFromOldA3 || journalAssignmentFromOldA4;
-
+                    const enteredText = inputA3.value; // Get the text from the current A3 textarea
+                    const reporterNameValue = inputD3.value; // Get value from D3 select
+                    const journalAssignmentValue = inputE3.value; // Get value from E3 select
 
                     // Get current date and time
                     const now = new Date();
                     const date = now.toLocaleDateString('he-IL'); // DD/MM/YYYY
                     const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); // HH:MM:SS
 
-                    // Remove the event listener from the current inputA3 before it's replaced
-                    inputA3.removeEventListener('keydown', handleEnterKey);
-                    inputA3.removeEventListener('input', autoResizeTextarea);
-
-
-                    // Create a new empty row that will become the new A3
-                    const newEmptyInputRow = document.createElement('tr');
-                    newEmptyInputRow.innerHTML = `
-                        <td class="col-description"><textarea class="cell-input" id="inputA3" rows="1"></textarea></td>
+                    // Create a new table row (which will become the new A4, B4, C4, D4, E4)
+                    const newTableRow = document.createElement('tr');
+                    newTableRow.innerHTML = `
+                        <td class="col-description"></td>
                         <td class="col-date"></td>
                         <td class="col-time"></td>
                         <td class="dropdown-cell col-reporter"></td>
                         <td class="dropdown-cell col-journal"></td>
                     `;
-                    // Append select elements to the new empty row's dropdown cells,
-                    // defaulting to the determined values (with fallback)
-                    newEmptyInputRow.children[3].appendChild(createSelectElement(reporterNames, newA3ReporterValue, 'reporter-name-select'));
-                    newEmptyInputRow.children[4].appendChild(createSelectElement(journalAssignments, newA3JournalValue, 'journal-assignment-select'));
 
-
-                    // Insert the new empty row before the current row
-                    tableBody.insertBefore(newEmptyInputRow, currentRow);
-
-                    // Now, populate the *current row* (which was A3 and now holds the entered text)
-                    // This row is now conceptually A4
-                    // Make A4 (תיאור האירוע) editable as textarea
-                    currentRow.children[0].innerHTML = ''; // Clear existing content
+                    // Populate the new table row
+                    // Make A4 editable as textarea
                     const descriptionTextarea = document.createElement('textarea');
                     descriptionTextarea.className = 'cell-input';
                     descriptionTextarea.value = enteredText;
-                    descriptionTextarea.rows = 1; // Start with 1 row, will expand with content
-                    currentRow.children[0].appendChild(descriptionTextarea);
+                    descriptionTextarea.rows = 1;
+                    newTableRow.children[0].appendChild(descriptionTextarea);
                     autoResizeTextarea(descriptionTextarea); // Resize after content is set
 
                     // Make B4 (תאריך) editable as input
-                    currentRow.children[1].innerHTML = ''; // Clear existing content
                     const dateInput = document.createElement('input');
                     dateInput.type = 'text';
                     dateInput.className = 'cell-input';
                     dateInput.value = date;
-                    currentRow.children[1].appendChild(dateInput);
+                    newTableRow.children[1].appendChild(dateInput);
 
                     // Make C4 (שעה) editable as input
-                    currentRow.children[2].innerHTML = ''; // Clear existing content
                     const timeInput = document.createElement('input');
                     timeInput.type = 'text';
                     timeInput.className = 'cell-input';
                     timeInput.value = time;
-                    currentRow.children[2].appendChild(timeInput);
+                    newTableRow.children[2].appendChild(timeInput);
 
+                    // For column D (שם המדווח): add select
+                    newTableRow.children[3].appendChild(createSelectElement(reporterNames, reporterNameValue, 'reporter-name-select'));
 
-                    // For column D (שם המדווח): replace content with a new select
-                    currentRow.children[3].innerHTML = ''; // Clear existing content
-                    currentRow.children[3].className = 'dropdown-cell'; // Ensure class is present
-                    currentRow.children[3].appendChild(createSelectElement(reporterNames, reporterNameFromOldA3, 'reporter-name-select'));
+                    // For column E (שיוך יומן): add select
+                    newTableRow.children[4].appendChild(createSelectElement(journalAssignments, journalAssignmentValue, 'journal-assignment-select'));
 
-                    // For column E (שיוך יומן): replace content with a new select
-                    currentRow.children[4].innerHTML = ''; // Clear existing content
-                    currentRow.children[4].className = 'dropdown-cell'; // Ensure class is present
-                    currentRow.children[4].appendChild(createSelectElement(journalAssignments, journalAssignmentFromOldA3, 'journal-assignment-select'));
+                    // Insert the new table row at the beginning of the table body
+                    tableBody.prepend(newTableRow);
 
+                    // Clear the input form area
+                    inputA3.value = '';
+                    inputD3.value = '';
+                    inputE3.value = '';
+                    autoResizeTextarea(inputA3); // Reset textarea height
 
-                    // Reassign inputA3 to the new input element in the new empty row
-                    inputA3 = newEmptyInputRow.querySelector('#inputA3');
-                    // Attach the event listener to the new inputA3 element
-                    inputA3.addEventListener('keydown', handleEnterKey);
-                    inputA3.addEventListener('input', () => autoResizeTextarea(inputA3));
-
-
-                    // Update all cell numbers after inserting the new row
+                    // Update all cell numbers after adding the new row
                     updateCellNumbers();
 
-                    // Focus on the new A3 input field
+                    // Focus on the A3 input field in the separate form area
                     inputA3.focus();
                 }
             }
 
-            // Attach the initial event listener to the input field in A3
+            // Attach the event listener to the input field in A3
             inputA3.addEventListener('keydown', handleEnterKey);
         });
     </script>
