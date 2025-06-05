@@ -12,8 +12,9 @@
             font-family: 'Inter', sans-serif;
             background-color: #f0f2f5;
             display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            flex-direction: column; /* Stack header, input area, and table vertically */
+            justify-content: flex-start;
+            align-items: center; /* Center content horizontally */
             min-height: 100vh;
             padding: 20px;
         }
@@ -37,6 +38,7 @@
             border-bottom: 1px solid #e2e8f0;
             position: relative; /* Needed for absolute positioning of cell numbers */
             vertical-align: top; /* Align content to the top of the cell */
+            box-sizing: border-box; /* Include padding in width calculations */
         }
         th {
             background-color: #ffe0e6; /* Light pink background for headers */
@@ -63,8 +65,9 @@
             text-align: center;
             padding: 12px 16px;
             border-radius: 8px;
-            margin-bottom: 10px;
-            display: inline-block;
+            margin-bottom: 20px; /* Space below header */
+            width: 100%; /* Full width */
+            max-width: 1200px; /* Match table max-width */
             position: relative; /* Needed for absolute positioning of cell number */
         }
         .dropdown-cell {
@@ -128,53 +131,12 @@
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
         }
 
-        /* Responsive Column Widths and Visibility for table rows */
-        /* Default general widths for table data rows */
+        /* Responsive Column Widths and Visibility for table rows (default is desktop) */
         .col-description { width: 30%; }
         .col-date { width: 15%; }
         .col-time { width: 15%; }
         .col-reporter { width: 20%; }
         .col-journal { width: 20%; }
-
-        /* Mobile specific overrides for table data rows (max-width: 767px) */
-        @media (max-width: 767px) {
-            /* Hide date and time headers on mobile */
-            thead .col-date,
-            thead .col-time {
-                display: none;
-            }
-
-            /* Adjust widths for all table data rows on mobile */
-            td.col-description { width: 35%; }
-            td.col-date { display: table-cell; width: 15%; } /* Keep visible for data rows */
-            td.col-time { display: table-cell; width: 15%; } /* Keep visible for data rows */
-            td.col-reporter { width: 20%; }
-            td.col-journal { width: 15%; }
-        }
-
-        /* On medium screens (tablets and up), apply standard widths and ensure visibility */
-        @media (min-width: 768px) { /* md breakpoint */
-            thead .col-date,
-            thead .col-time,
-            td.col-date,
-            td.col-time {
-                display: table-cell !important; /* Ensure visible for all rows */
-            }
-            .col-description { width: 25%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
-            .col-reporter { width: 25%; }
-            .col-journal { width: 20%; }
-        }
-
-        /* On large screens (desktops and up), adjust widths */
-        @media (min-width: 1024px) { /* lg breakpoint */
-            .col-description { width: 30%; }
-            .col-date { width: 15%; }
-            .col-time { width: 15%; }
-            .col-reporter { width: 20%; }
-            .col-journal { width: 20%; }
-        }
 
         /* Specific styling for the separate input form area */
         .input-form-area {
@@ -188,21 +150,21 @@
             box-sizing: border-box; /* Include padding in width */
             display: flex;
             flex-direction: column; /* Stack items vertically by default */
-            gap: 10px; /* Space between input elements */
+            gap: 15px; /* Increased space between input elements for visual separation */
         }
         .input-form-area .main-input-wrapper {
             flex-grow: 1;
         }
         .input-form-area .select-group {
             display: flex;
-            gap: 10px;
+            gap: 10px; /* Space between the two selects */
         }
         .input-form-area .select-group > div {
             flex-basis: 50%; /* Each select wrapper takes half width */
             flex-grow: 1;
         }
 
-        /* Adjust input elements within the form area */
+        /* Adjust input elements within the form area to match screenshot's lighter look */
         .input-form-area .cell-input,
         .input-form-area .dropdown-cell select {
             border: 1px solid #d1d5db; /* Lighter border for clean look */
@@ -213,23 +175,64 @@
             padding-right: 30px; /* Space for custom arrow */
         }
 
-        /* Mobile adjustments for the input form area */
+        /* Mobile specific overrides */
         @media (max-width: 767px) {
+            /* Table headers and data rows */
+            thead .col-date,
+            thead .col-time {
+                display: table-cell; /* Ensure headers are visible on mobile */
+            }
+            td.col-date,
+            td.col-time {
+                display: table-cell; /* Ensure data cells are visible on mobile */
+            }
+
+            /* Adjust column widths for mobile data rows based on image */
+            .col-description { width: 35%; }
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
+            .col-reporter { width: 20%; }
+            .col-journal { width: 15%; }
+
+            /* Input form area specific mobile adjustments */
+            .input-form-area {
+                padding: 12px; /* Slightly less padding on very small screens */
+                gap: 10px; /* Slightly less gap */
+            }
+            .input-form-area .main-input-wrapper {
+                margin-bottom: 5px; /* Small space between textarea and selects group */
+            }
             .input-form-area .select-group {
-                flex-direction: row; /* Keep selects side by side on small screens */
+                flex-direction: row; /* Keep selects side by side */
+                gap: 8px; /* Slightly less gap for selects */
             }
             .input-form-area .select-group > div {
                 flex-basis: 50%;
             }
         }
 
-        /* Tablet/Desktop adjustments for the input form area (optional, can inherit from default) */
-        @media (min-width: 768px) {
+        /* Tablet/Desktop adjustments (can inherit from default for some or override) */
+        @media (min-width: 768px) { /* md breakpoint */
+            .col-description { width: 25%; }
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
+            .col-reporter { width: 25%; }
+            .col-journal { width: 20%; }
+
             .input-form-area {
-                flex-direction: column; /* Still stack textarea on top, selects below */
+                flex-direction: column; /* Stack textarea on top, selects below */
                 gap: 15px;
             }
         }
+
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .col-description { width: 30%; }
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
+            .col-reporter { width: 20%; }
+            .col-journal { width: 20%; }
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 p-4">
