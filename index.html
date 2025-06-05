@@ -182,6 +182,7 @@
             background-color: #3182ce; /* Darker blue on hover */
         }
 
+
         /* Adjust input elements within the form area to match screenshot's lighter look */
         .input-form-area .cell-input,
         .input-form-area .dropdown-cell select {
@@ -376,19 +377,18 @@
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase (provided by Canvas environment)
-        // Ensure that firebaseConfig has a projectId. If not provided by Canvas, use a fallback for testing.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
         // Fallback for firebaseConfig if projectId or apiKey is missing (crucial for Uncaught FirebaseError)
-        // Note: For actual deployment, replace "YOUR_API_KEY" and "YOUR_PROJECT_ID" with real Firebase project details.
+        // Note: For actual deployment, replace these with real Firebase project details.
         const defaultFirebaseConfig = {
-            apiKey: " AIzaSyAH5Aif-yJd03-rPF4D6XvOT5af28MfXO0", // <--- החלף את זה במפתח ה-API האמיתי שלך מ-Firebase Console
-            authDomain: " lappid-hapak.firebaseapp.com", // <--- החלף את זה במזהה הפרויקט האמיתי שלך מ-Firebase Console
-            projectId: " lappid-hapak", // <--- החלף גם את זה במזהה הפרויקט האמיתי שלך
-            storageBucket: " lappid-hapak.firebasestorage.app", // <--- החלף את זה במזהה הפרויקט האמיתי שלך
-            messagingSenderId: "164837194636", // <--- החלף את זה ב-Messaging Sender ID האמיתי שלך
-            appId: "1:164837194636:web:068ea1f14f303d2bbb34a9" // <--- החלף את זה ב-App ID האמיתי שלך
+            apiKey: "AIzaSyAH5Aif-yJd03-rPF4D6XvOT5af28MfXO0",
+            authDomain: "lappid-hapak.firebaseapp.com",
+            projectId: "lappid-hapak",
+            storageBucket: "lappid-hapak.firebasestorage.app",
+            messagingSenderId: "164837194636",
+            appId: "1:164837194636:web:068ea1f14f303d2bbb34a9"
         };
 
         if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "default-project-id") {
@@ -410,6 +410,7 @@
             document.getElementById('error-display').classList.add('show'); // Show user-friendly error
             // Prevent further Firebase operations if initialization failed
         }
+
 
         let userId = null; // To store the authenticated user ID
         let isAuthReady = false; // Flag to indicate if auth state is known
@@ -539,6 +540,7 @@
                 errorDisplay.classList.add('show'); // Show user-friendly error
             }
 
+
             // --- Firestore Realtime Listener Setup ---
             function setupFirestoreListener() {
                 if (!isAuthReady || !isFirebaseInitialized) {
@@ -606,6 +608,7 @@
                 });
             }
 
+
             // --- Function to handle submission logic (used by both Enter in textarea and Submit button) ---
             async function handleSubmit() {
                 console.log("handleSubmit triggered."); // Log when function is called
@@ -671,6 +674,7 @@
                 }
             }
 
+
             // --- Event Listeners ---
             // Allow Enter key to create new lines in A3 textarea (Shift+Enter)
             // Or submit on plain Enter
@@ -703,5 +707,3 @@
     </script>
 </body>
 </html>
-
-
