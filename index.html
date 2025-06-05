@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area now features all core input elements (report description, reporter, log type, and action buttons) arranged horizontally on larger screens for compact and efficient interaction. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table, providing direct 'Edit' and 'Delete' actions for each entry. This streamlined structure prioritizes a clear and intuitive user flow for managing reports. -->
-    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update'. Clicking 'Delete' removes a row. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. The table provides clear data overview and direct management actions. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are now hidden by default and only appear when editing an existing report. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table strictly displays reports in a Last-In-First-Out (LIFO) order for new additions (most recent at top), with existing reports updating in place without changing their position. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update', dynamically showing the date/time inputs. New reports are prepended to the display list. Updated reports remain in their original position. No explicit sorting is applied to the list. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. Dynamically showing date/time inputs only during edit simplifies the default add experience. Displaying reports in strict LIFO order for new entries, combined with in-place updates, provides a very direct and predictable interaction model. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
@@ -59,16 +59,13 @@
         <main class="bg-white rounded-xl shadow-lg p-6 ring-1 ring-[#EAE2D9]">
             <div class="controls-section mb-6 pb-6 border-b border-[#EAE2D9]">
                 
-                <!-- Main Input and Action Area - Now consolidated to a single row concept -->
                 <div class="max-w-full mx-auto mb-6 p-4 bg-[#F8F5F1] rounded-lg shadow-inner">
                     <div class="flex flex-col sm:flex-row items-end gap-4">
-                        <div class="flex-grow w-full sm:w-auto"> <!-- Textarea takes primary space -->
-                            <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
+                        <div class="flex-grow w-full sm:w-auto"> <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
                             <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md" rows="2" placeholder="פרטי דיווח קצרים..."></textarea>
                         </div>
                         
-                        <div class="flex-shrink-0 w-full sm:w-auto"> <!-- Reporter dropdown -->
-                            <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">מדווח:</label>
+                        <div class="flex-shrink-0 w-full sm:w-auto"> <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">מדווח:</label>
                             <select id="filterReporter" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
                                 <option value="אורי">אורי</option>
                                 <option value="שונית">שונית</option>
@@ -76,8 +73,7 @@
                             </select>
                         </div>
                         
-                        <div class="flex-shrink-0 w-full sm:w-auto"> <!-- Log Type dropdown -->
-                            <label for="filterLogType" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שיוך:</label>
+                        <div class="flex-shrink-0 w-full sm:w-auto"> <label for="filterLogType" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שיוך:</label>
                             <select id="filterLogType" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
                                 <option value="שגרה">שגרה</option>
                                 <option value="שריפה">שריפה</option>
@@ -85,26 +81,23 @@
                             </select>
                         </div>
                         
-                        <!-- Visible Date and Time Inputs -->
-                        <div class="flex-shrink-0 w-full sm:w-auto">
+                        <!-- Hidden Date and Time Inputs by default -->
+                        <div id="dateInputContainer" class="flex-shrink-0 w-full sm:w-auto hidden">
                             <label for="newDate" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תאריך:</label>
                             <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
                         </div>
-                        <div class="flex-shrink-0 w-full sm:w-auto">
-                            <label for="newTime" class="block mb-1 text-sm font-semibold text-[#6D5F53]">שעה (24H):</label>
+                        <div id="timeInputContainer" class="flex-shrink-0 w-full sm:w-auto hidden">
+                            <label for="newTime" class="block mb-1 text-sm font-semibold text-[#6D5F53]">שעה:</label>
                             <input type="text" id="newTime" class="form-input w-full p-2 border rounded-md" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
                         </div>
 
-                        <div class="flex-shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-end gap-2"> <!-- Action buttons -->
-                            <button id="mainActionBtn" class="btn-primary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto">הזן</button>
+                        <div class="flex-shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-end gap-2"> <button id="mainActionBtn" class="btn-primary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto">הזן</button>
                             <button id="cancelEditBtn" class="btn-secondary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto hidden">ביטול</button>
                         </div>
                     </div>
                     <div id="inputErrorMessage" class="text-red-500 text-center mt-4 h-5"></div>
                 </div>
 
-                <!-- The original hidden date and time inputs div is removed -->
-                <!-- The original filter dropdowns div is removed as they are now part of the main input area -->
             </div>
 
             <div class="table-container overflow-x-auto">
@@ -132,6 +125,9 @@
     </div>
 
     <script>
+        let reports = []; // Global scope
+        let editingReportIndex = null; // Global scope
+
         document.addEventListener('DOMContentLoaded', () => {
             const filterReporter = document.getElementById('filterReporter');
             const filterLogType = document.getElementById('filterLogType');
@@ -139,15 +135,14 @@
             const generalTextInput = document.getElementById('generalTextInput');
             const newDateInput = document.getElementById('newDate'); 
             const newTimeInput = document.getElementById('newTime'); 
+            const dateInputContainer = document.getElementById('dateInputContainer'); // New ref
+            const timeInputContainer = document.getElementById('timeInputContainer'); // New ref
 
             const mainActionBtn = document.getElementById('mainActionBtn');
             const cancelEditBtn = document.getElementById('cancelEditBtn');
             const tableBody = document.getElementById('reportTableBody');
             const emptyStateRow = document.getElementById('empty-state');
             const inputErrorMessage = document.getElementById('inputErrorMessage');
-
-            let reports = [];
-            let editingReportIndex = null; // null when adding, index when editing
 
             // Sets default date and time in the input fields
             const setDefaultDateTime = () => {
@@ -168,47 +163,42 @@
                 return pattern.test(timeString);
             };
 
-            // Function to sort reports by date (descending) then time (descending)
-            const sortReports = () => {
-                reports.sort((a, b) => {
-                    // Compare dates (descending)
-                    const dateA = new Date(a.date);
-                    const dateB = new Date(b.date);
-
-                    if (dateA > dateB) return -1; // b comes before a for descending date
-                    if (dateA < dateB) return 1;  // a comes before b for descending date
-
-                    // If dates are equal, compare times (descending)
-                    // Ensure time is compared as strings lexicographically for HH:MM format
-                    if (a.time > b.time) return -1; 
-                    if (a.time < b.time) return 1;  
-
-                    return 0; // Objects are equal
-                });
+            // Function to format date as DD/MM/YYYY
+            const formatAsDDMMYYYY = (dateString) => {
+                const date = new Date(dateString);
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
             };
 
-            // Renders the table content based on the reports array
+            // renderTable now simply renders the reports array as is (no sorting)
             const renderTable = () => {
                 tableBody.innerHTML = '';
+                
                 if (reports.length === 0) {
                     tableBody.appendChild(emptyStateRow);
-                } else {
-                    reports.forEach((report, index) => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-[#F8F5F1]';
-                        row.innerHTML = `
-                            <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
-                            <td class="table-cell">${new Date(report.date).toLocaleDateString('he-IL')}</td>
-                            <td class="table-cell">${report.time}</td>
-                            <td class="table-cell">${report.reporter}</td>
-                            <td class="table-cell">${report.logType}</td>
-                            <td class="table-cell text-center whitespace-nowrap">
-                                <button data-index="${index}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
-                            </td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
+                    console.log('No reports to display.');
+                    return;
                 }
+
+                // Render the reports in their current order (Last-In-First-Out for additions, in-place for updates)
+                reports.forEach((report) => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-[#F8F5F1]';
+                    row.innerHTML = `
+                        <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
+                        <td class="table-cell">${formatAsDDMMYYYY(report.date)}</td>
+                        <td class="table-cell">${report.time}</td>
+                        <td class="table-cell">${report.reporter}</td>
+                        <td class="table-cell">${report.logType}</td>
+                        <td class="table-cell text-center whitespace-nowrap">
+                            <button data-id="${report.id}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                console.log('Current reports array (raw order):', reports); // For debugging
             };
 
             // Clears the input fields and resets the form to "add new report" mode
@@ -216,60 +206,80 @@
                 generalTextInput.value = '';
                 setDefaultDateTime(); 
                 generalTextInput.focus();
-                editingReportIndex = null;
+                editingReportIndex = null; // Clear index for editing
                 mainActionBtn.textContent = 'הזן';
                 cancelEditBtn.classList.add('hidden');
                 inputErrorMessage.textContent = '';
+                
+                // Hide date and time inputs after reset
+                dateInputContainer.classList.add('hidden');
+                timeInputContainer.classList.add('hidden');
+
+                renderTable(); // Re-render to reflect the reset state
             };
 
             // Adds a new report
             const addReport = () => {
                 const description = generalTextInput.value.trim();
-                const date = newDateInput.value;
-                const time = newTimeInput.value;
+                // For new reports, always take current date/time
+                const date = newDateInput.value; // It will be the default set by setDefaultDateTime
+                const time = newTimeInput.value; // It will be the default set by setDefaultDateTime
+                
                 const reporter = filterReporter.value; // Get from dropdown
                 const logType = filterLogType.value;   // Get from dropdown
 
-                if (!description || !date || !time) {
-                    inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
-                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
-                    return;
-                }
-                if (!isValidTimeFormat(time)) {
-                    inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
+                if (!description) { // Only description is mandatory for new add as date/time are auto-filled
+                    inputErrorMessage.textContent = 'יש למלא את שדה תיאור הדיווח.';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
 
-                reports.push({ description, date, time, reporter, logType });
-                sortReports(); // Sort after adding
-                renderTable();
+                // Date and time are always filled by setDefaultDateTime on reset/load, so no format validation needed on add
+                // as they come from internal functions.
+
+                const newReport = { 
+                    id: crypto.randomUUID(), // Assign a unique ID
+                    description, 
+                    date, 
+                    time, 
+                    reporter, 
+                    logType 
+                };
+                reports.unshift(newReport); // Add to the BEGINNING of the array
+                renderTable(); // Simply render, no sorting
                 resetForm(); // Reset form after adding
             };
 
             // Updates an existing report
             const updateReport = () => {
                 const description = generalTextInput.value.trim();
-                const date = newDateInput.value;
-                const time = newTimeInput.value;
+                // For updates, use the values from the visible inputs
+                const date = newDateInput.value; 
+                const time = newTimeInput.value; 
+
                 const reporter = filterReporter.value; // Get from dropdown
                 const logType = filterLogType.value;   // Get from dropdown
 
-                if (!description || !date || !time) {
+                if (!description || !date || !time) { // All fields are mandatory for updates
                     inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
-                if (!isValidTimeFormat(time)) {
+                if (!isValidTimeFormat(time)) { // Validate time format for updates
                     inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
 
                 if (editingReportIndex !== null) {
-                    reports[editingReportIndex] = { description, date, time, reporter, logType };
-                    sortReports(); // Sort after updating
-                    renderTable();
+                    const reportToUpdate = reports[editingReportIndex];
+                    reportToUpdate.description = description;
+                    reportToUpdate.date = date;
+                    reportToUpdate.time = time;
+                    reportToUpdate.reporter = reporter;
+                    reportToUpdate.logType = logType;
+
+                    renderTable(); // Simply render, no sorting (updates in place)
                     resetForm(); // Reset form after updating
                 }
             };
@@ -290,27 +300,38 @@
             tableBody.addEventListener('click', (e) => {
                 // Edit button
                 if (e.target.classList.contains('edit-btn')) {
-                    const index = parseInt(e.target.getAttribute('data-index'));
+                    const reportIdToEdit = e.target.getAttribute('data-id');
+                    const index = reports.findIndex(report => report.id === reportIdToEdit);
+                    
+                    if (index === -1) {
+                        console.error('Report not found for editing:', reportIdToEdit);
+                        return;
+                    }
+
                     const reportToEdit = reports[index];
                     
                     // Populate inputs with report data
                     generalTextInput.value = reportToEdit.description;
                     newDateInput.value = reportToEdit.date;
-                    newTimeInput.value = reportToEdit.time; // This will now correctly populate HH:MM into text input
+                    newTimeInput.value = reportToEdit.time; 
                     filterReporter.value = reportToEdit.reporter; // Update dropdown
                     filterLogType.value = reportToEdit.logType;   // Update dropdown
                     
                     editingReportIndex = index; // Set editing mode
                     mainActionBtn.textContent = 'עדכן דיווח'; // Change button text
                     cancelEditBtn.classList.remove('hidden'); // Show cancel button
+                    
+                    // SHOW date and time inputs when editing
+                    dateInputContainer.classList.remove('hidden');
+                    timeInputContainer.classList.remove('hidden');
+
                     generalTextInput.focus(); // Focus on description for editing
                 }
             });
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
-            sortReports(); 
-            renderTable();
+            renderTable(); // Initial render
         });
     </script>
 </body>
