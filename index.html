@@ -85,6 +85,16 @@
                             </select>
                         </div>
                         
+                        <!-- Visible Date and Time Inputs -->
+                        <div class="flex-shrink-0 w-full sm:w-auto">
+                            <label for="newDate" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תאריך:</label>
+                            <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
+                        </div>
+                        <div class="flex-shrink-0 w-full sm:w-auto">
+                            <label for="newTime" class="block mb-1 text-sm font-semibold text-[#6D5F53]">שעה (24H):</label>
+                            <input type="text" id="newTime" class="form-input w-full p-2 border rounded-md" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+                        </div>
+
                         <div class="flex-shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-end gap-2"> <!-- Action buttons -->
                             <button id="mainActionBtn" class="btn-primary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto">הזן</button>
                             <button id="cancelEditBtn" class="btn-secondary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto hidden">ביטול</button>
@@ -93,18 +103,7 @@
                     <div id="inputErrorMessage" class="text-red-500 text-center mt-4 h-5"></div>
                 </div>
 
-                <!-- Hidden date and time inputs - remain hidden but functional -->
-                <div class="hidden">
-                    <div>
-                        <label for="newDate" class="block mb-1 text-sm font-medium">תאריך:</label>
-                        <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
-                    </div>
-                    <div>
-                        <label for="newTime" class="block mb-1 text-sm font-medium">שעה:</label>
-                        <input type="time" id="newTime" class="form-input w-full p-2 border rounded-md">
-                    </div>
-                </div>
-
+                <!-- The original hidden date and time inputs div is removed -->
                 <!-- The original filter dropdowns div is removed as they are now part of the main input area -->
             </div>
 
@@ -138,8 +137,8 @@
             const filterLogType = document.getElementById('filterLogType');
             
             const generalTextInput = document.getElementById('generalTextInput');
-            const newDateInput = document.getElementById('newDate'); // Hidden, but functional
-            const newTimeInput = document.getElementById('newTime'); // Hidden, but functional
+            const newDateInput = document.getElementById('newDate'); 
+            const newTimeInput = document.getElementById('newTime'); 
 
             const mainActionBtn = document.getElementById('mainActionBtn');
             const cancelEditBtn = document.getElementById('cancelEditBtn');
@@ -160,9 +159,15 @@
                 
                 const hours = now.getHours().toString().padStart(2, '0');
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                newTimeInput.value = `${hours}:${minutes}`;
+                newTimeInput.value = `${hours}:${minutes}`; // Ensures 24H format for default
             };
             
+            // Function to validate time format (HH:MM)
+            const isValidTimeFormat = (timeString) => {
+                const pattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                return pattern.test(timeString);
+            };
+
             // Function to sort reports by date (descending) then time (descending)
             const sortReports = () => {
                 reports.sort((a, b) => {
@@ -174,8 +179,9 @@
                     if (dateA < dateB) return 1;  // a comes before b for descending date
 
                     // If dates are equal, compare times (descending)
-                    if (a.time > b.time) return -1; // b comes before a for descending time
-                    if (a.time < b.time) return 1;  // a comes before b for descending time
+                    // Ensure time is compared as strings lexicographically for HH:MM format
+                    if (a.time > b.time) return -1; 
+                    if (a.time < b.time) return 1;  
 
                     return 0; // Objects are equal
                 });
@@ -197,8 +203,7 @@
                             <td class="table-cell">${report.reporter}</td>
                             <td class="table-cell">${report.logType}</td>
                             <td class="table-cell text-center whitespace-nowrap">
-                                <button data-index="${index}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn ml-2">ערוך</button>
-                                <button data-index="${index}" class="text-red-500 hover:text-red-700 font-semibold delete-btn">מחק</button>
+                                <button data-index="${index}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
                             </td>
                         `;
                         tableBody.appendChild(row);
@@ -215,8 +220,6 @@
                 mainActionBtn.textContent = 'הזן';
                 cancelEditBtn.classList.add('hidden');
                 inputErrorMessage.textContent = '';
-                // The dropdowns retain their last selected value as per design,
-                // which will be used for new entries unless changed by the user.
             };
 
             // Adds a new report
@@ -229,6 +232,11 @@
 
                 if (!description || !date || !time) {
                     inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
+                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                    return;
+                }
+                if (!isValidTimeFormat(time)) {
+                    inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
@@ -249,6 +257,11 @@
 
                 if (!description || !date || !time) {
                     inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
+                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                    return;
+                }
+                if (!isValidTimeFormat(time)) {
+                    inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
@@ -273,16 +286,8 @@
             // Handles the click on the cancel edit button
             cancelEditBtn.addEventListener('click', resetForm);
             
-            // Event delegation for table actions (edit and delete)
+            // Event delegation for table actions (edit)
             tableBody.addEventListener('click', (e) => {
-                // Delete button
-                if (e.target.classList.contains('delete-btn')) {
-                    const index = parseInt(e.target.getAttribute('data-index'));
-                    reports.splice(index, 1);
-                    sortReports(); // Sort after deleting
-                    renderTable();
-                    resetForm(); // Reset form in case deleted item was being edited
-                }
                 // Edit button
                 if (e.target.classList.contains('edit-btn')) {
                     const index = parseInt(e.target.getAttribute('data-index'));
@@ -291,7 +296,7 @@
                     // Populate inputs with report data
                     generalTextInput.value = reportToEdit.description;
                     newDateInput.value = reportToEdit.date;
-                    newTimeInput.value = reportToEdit.time;
+                    newTimeInput.value = reportToEdit.time; // This will now correctly populate HH:MM into text input
                     filterReporter.value = reportToEdit.reporter; // Update dropdown
                     filterLogType.value = reportToEdit.logType;   // Update dropdown
                     
@@ -304,7 +309,7 @@
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
-            sortReports(); // Initial sort in case of pre-existing data (not applicable here, but good practice)
+            sortReports(); 
             renderTable();
         });
     </script>
