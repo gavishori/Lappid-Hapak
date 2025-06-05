@@ -163,6 +163,25 @@
             flex-basis: 50%; /* Each select wrapper takes half width */
             flex-grow: 1;
         }
+        .input-form-area .submit-button-wrapper {
+            display: flex;
+            justify-content: flex-end; /* Align button to the right */
+            margin-top: 10px; /* Space above the button */
+        }
+        .input-form-area button {
+            background-color: #4299e1; /* Blue button */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .input-form-area button:hover {
+            background-color: #3182ce; /* Darker blue on hover */
+        }
+
 
         /* Adjust input elements within the form area to match screenshot's lighter look */
         .input-form-area .cell-input,
@@ -289,6 +308,9 @@
                 </div>
             </div>
         </div>
+        <div class="submit-button-wrapper">
+            <button id="submitButton">הזן</button>
+        </div>
     </div>
 
     <div class="table-container">
@@ -347,11 +369,16 @@
             const inputA3 = document.getElementById('inputA3');
             const inputD3 = document.getElementById('inputD3');
             const inputE3 = document.getElementById('inputE3');
+            const submitButton = document.getElementById('submitButton'); // Get the new button
             const loadingIndicator = document.getElementById('loading-indicator');
 
             // Options for dropdowns
             const reporterNames = ["שונית", "אורי", "יעקב", "משה"];
             const journalAssignments = ["חרבות ברזל", "תרגיל", "שריפה", "שגרה", "אחר"];
+
+            // Variable to store the last selected reporter and journal values
+            let lastReporterValue = '';
+            let lastJournalValue = '';
 
             // Function to show/hide loading indicator
             function showLoading(show) {
@@ -523,49 +550,74 @@
             }
 
 
-            // --- Event Handler for Enter key in input A3 ---
-            inputA3.addEventListener('keydown', async (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevent default Enter key behavior (newline)
+            // --- Function to handle submission logic (used by both Enter in textarea and Submit button) ---
+            async function handleSubmit() {
+                showLoading(true);
 
-                    showLoading(true);
+                const enteredText = inputA3.value;
+                const reporterNameValue = inputD3.value; // Get value from D3 select in the form area
+                const journalAssignmentValue = inputE3.value; // Get value from E3 select in the form area
 
-                    const enteredText = inputA3.value;
-                    const reporterNameValue = inputD3.value; // Get value from D3 select in the form area
-                    const journalAssignmentValue = inputE3.value; // Get value from E3 select in the form area
+                // Only proceed if description is not empty
+                if (enteredText.trim() === '') {
+                    console.warn("תיאור האירוע לא יכול להיות ריק.");
+                    showLoading(false);
+                    return;
+                }
 
-                    const now = new Date();
-                    const date = now.toLocaleDateString('he-IL');
-                    const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const now = new Date();
+                const date = now.toLocaleDateString('he-IL');
+                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                    const eventData = {
-                        description: enteredText,
-                        date: date,
-                        time: time,
-                        reporter: reporterNameValue,
-                        journal: journalAssignmentValue,
-                        timestamp: serverTimestamp() // Firestore server timestamp for ordering
-                    };
+                const eventData = {
+                    description: enteredText,
+                    date: date,
+                    time: time,
+                    reporter: reporterNameValue,
+                    journal: journalAssignmentValue,
+                    timestamp: serverTimestamp() // Firestore server timestamp for ordering
+                };
 
-                    try {
-                        // Add the new event data to Firestore
-                        const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
-                        await addDoc(eventsCollectionRef, eventData);
-                        console.log("Document successfully written!");
+                try {
+                    // Add the new event data to Firestore
+                    const eventsCollectionRef = collection(db, `artifacts/${appId}/public/data/events`);
+                    await addDoc(eventsCollectionRef, eventData);
+                    console.log("Document successfully written!");
 
-                        // Clear the input form area, but keep D3 and E3 values
-                        inputA3.value = '';
-                        autoResizeTextarea(inputA3); // Reset textarea height
+                    // Clear the input form area A3 textarea
+                    inputA3.value = '';
+                    autoResizeTextarea(inputA3); // Reset textarea height
 
-                        inputA3.focus(); // Focus back on A3
-                    } catch (error) {
-                        console.error("Error adding document: ", error);
-                        // Optionally display an error message to the user
-                    } finally {
-                        showLoading(false);
-                    }
+                    // Update last selected values for D3 and E3
+                    lastReporterValue = reporterNameValue;
+                    lastJournalValue = journalAssignmentValue;
+
+                    // Set the D3 and E3 selects in the input form area to the last selected values
+                    inputD3.value = lastReporterValue;
+                    inputE3.value = lastJournalValue;
+
+                    inputA3.focus(); // Focus back on A3
+                } catch (error) {
+                    console.error("Error adding document: ", error);
+                    // Optionally display an error message to the user
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+
+            // --- Event Listeners ---
+            // Allow Enter key to create new lines in A3 textarea
+            // But still handle submission on Enter if user desires a quick submit on last line
+            inputA3.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) { // Submit on Enter, allow Shift+Enter for new line
+                    event.preventDefault(); // Prevent default Enter (which is new line)
+                    handleSubmit();
                 }
             });
+
+            // Handle submission when the "הזן" button is clicked
+            submitButton.addEventListener('click', handleSubmit);
 
             // Auto-resize the initial inputA3 on load
             autoResizeTextarea(inputA3);
