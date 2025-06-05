@@ -21,7 +21,7 @@
             background-color: #ffffff;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow-x: auto; /* Allows horizontal scrolling on small screens */
+            overflow-x: auto; /* Allows horizontal scrolling on small screens if content overflows */
             width: 100%;
             max-width: 1200px;
         }
@@ -29,13 +29,14 @@
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
+            table-layout: fixed; /* Ensures column widths are respected */
         }
         th, td {
             padding: 12px 16px;
             text-align: right;
             border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap; /* Prevents text wrapping in cells by default */
             position: relative; /* Needed for absolute positioning of cell numbers */
+            vertical-align: top; /* Align content to the top of the cell */
         }
         th {
             background-color: #ffe0e6; /* Light pink background for headers */
@@ -44,6 +45,10 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            white-space: nowrap; /* Keep headers on one line */
+        }
+        td {
+            white-space: normal; /* Allow text wrapping within data cells */
         }
         tr:nth-child(even) {
             background-color: #f8faff; /* Light blueish background for even rows */
@@ -77,7 +82,7 @@
             font-size: 0.9rem;
             color: #2c5282;
             width: 100%;
-            min-width: 120px;
+            min-width: 100px; /* Reduced min-width for mobile flexibility */
         }
         .dropdown-cell select:focus {
             outline: none;
@@ -122,6 +127,34 @@
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
         }
+
+        /* Responsive Column Widths */
+        /* Default for mobile (smaller screens) */
+        .col-description { width: 35%; } /* תיאור האירוע */
+        .col-date { width: 15%; } /* תאריך */
+        .col-time { width: 15%; } /* שעה */
+        .col-reporter { width: 20%; } /* שם המדווח */
+        .col-journal { width: 15%; } /* שיוך יומן */
+
+
+        /* On medium screens (tablets and up), adjust widths */
+        @media (min-width: 768px) { /* md breakpoint */
+            .col-description { width: 25%; }
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
+            .col-reporter { width: 25%; }
+            .col-journal { width: 20%; }
+        }
+
+        /* On large screens (desktops and up), adjust widths */
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .col-description { width: 30%; }
+            .col-date { width: 15%; }
+            .col-time { width: 15%; }
+            .col-reporter { width: 20%; }
+            .col-journal { width: 20%; }
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 p-4">
@@ -136,19 +169,19 @@
             <thead>
                 <tr>
                     <!-- Row 2 (headers) -->
-                    <th class="rounded-tr-lg">
+                    <th class="rounded-tr-lg col-description">
                         תיאור האירוע
                     </th>
-                    <th>
+                    <th class="col-date">
                         תאריך
                     </th>
-                    <th>
+                    <th class="col-time">
                         שעה
                     </th>
-                    <th>
+                    <th class="col-reporter">
                         שם המדווח
                     </th>
-                    <th class="rounded-tl-lg">
+                    <th class="rounded-tl-lg col-journal">
                         שיוך יומן
                     </th>
                 </tr>
@@ -156,12 +189,12 @@
             <tbody id="table-body">
                 <!-- This will be the interactive row A3 -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" id="inputA3" rows="1"></textarea>
                     </td>
-                    <td></td>
-                    <td></td>
-                    <td class="dropdown-cell">
+                    <td class="col-date"></td>
+                    <td class="col-time"></td>
+                    <td class="dropdown-cell col-reporter">
                         <!-- Added reporter name select to initial A3 row -->
                         <select class="reporter-name-select">
                             <option value=""></option>
@@ -171,7 +204,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value=""></option>
                             <option value="חרבות ברזל">חרבות ברזל</option>
@@ -184,16 +217,16 @@
                 </tr>
                 <!-- Example Row 1 (original A3, now A4) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1">תרגיל</textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="04/06/2025">
                     </td>
-                    <td>
+                    <td class="col-time">
                         <input type="text" class="cell-input" value="17:52:42">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value="שונית">שונית</option>
                             <option value="אורי">אורי</option>
@@ -201,7 +234,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value="חרבות ברזל">חרבות ברזל</option>
                             <option value="תרגיל" selected>תרגיל</option>
@@ -213,16 +246,16 @@
                 </tr>
                 <!-- Example Row 2 (original A4, now A5) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1">תרגיל כיבוי אש</textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="04/06/2025">
                     </td>
-                    <td>
+                    <td class="col-time">
                         <input type="text" class="cell-input" value="17:52:36">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value="שונית" selected>שונית</option>
                             <option value="אורי">אורי</option>
@@ -230,7 +263,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value="חרבות ברזל">חרבות ברזל</option>
                             <option value="תרגיל">תרגיל</option>
@@ -242,16 +275,16 @@
                 </tr>
                 <!-- Example Row 3 (original A5, now A6) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1">סיום תרגיל</textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="26/05/2025">
                     </td>
-                    <td>
+                    <td class="col-time">
                         <input type="text" class="cell-input" value="21:28:20">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value="שונית">שונית</option>
                             <option value="אורי" selected>אורי</option>
@@ -259,7 +292,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value="חרבות ברזל">חרבות ברזל</option>
                             <option value="תרגיל">תרגיל</option>
@@ -280,7 +313,7 @@
                     <td>
                         <input type="text" class="cell-input" value="18:46:50">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value="שונית">שונית</option>
                             <option value="אורי" selected>אורי</option>
@@ -288,7 +321,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value="חרבות ברזל">חרבות ברזל</option>
                             <option value="תרגיל">תרגיל</option>
@@ -300,16 +333,16 @@
                 </tr>
                 <!-- Empty row for additional entries (original A7, now A8) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1"></textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td>
+                    <td class="col-time">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value=""></option>
                             <option value="שונית">שונית</option>
@@ -318,7 +351,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value=""></option>
                             <option value="חרבות ברזל">חרבות ברזל</option>
@@ -331,16 +364,16 @@
                 </tr>
                 <!-- Empty row for additional entries (original A8, now A9) -->
                 <tr>
-                    <td>
+                    <td class="col-description">
                         <textarea class="cell-input" rows="1"></textarea>
                     </td>
-                    <td>
+                    <td class="col-date">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td>
+                    <td class="col-time">
                         <input type="text" class="cell-input" value="">
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-reporter">
                         <select class="reporter-name-select">
                             <option value=""></option>
                             <option value="שונית">שונית</option>
@@ -349,7 +382,7 @@
                             <option value="משה">משה</option>
                         </select>
                     </td>
-                    <td class="dropdown-cell">
+                    <td class="dropdown-cell col-journal">
                         <select class="journal-assignment-select">
                             <option value=""></option>
                             <option value="חרבות ברזל">חרבות ברזל</option>
@@ -505,11 +538,11 @@
                     // Create a new empty row that will become the new A3
                     const newEmptyInputRow = document.createElement('tr');
                     newEmptyInputRow.innerHTML = `
-                        <td><textarea class="cell-input" id="inputA3" rows="1"></textarea></td>
-                        <td></td>
-                        <td></td>
-                        <td class="dropdown-cell"></td>
-                        <td class="dropdown-cell"></td>
+                        <td class="col-description"><textarea class="cell-input" id="inputA3" rows="1"></textarea></td>
+                        <td class="col-date"></td>
+                        <td class="col-time"></td>
+                        <td class="dropdown-cell col-reporter"></td>
+                        <td class="dropdown-cell col-journal"></td>
                     `;
                     // Append select elements to the new empty row's dropdown cells,
                     // defaulting to the determined values (with fallback)
