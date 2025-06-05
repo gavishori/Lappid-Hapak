@@ -163,6 +163,24 @@
                 newTimeInput.value = `${hours}:${minutes}`;
             };
             
+            // Function to sort reports by date (descending) then time (descending)
+            const sortReports = () => {
+                reports.sort((a, b) => {
+                    // Compare dates (descending)
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+
+                    if (dateA > dateB) return -1; // b comes before a for descending date
+                    if (dateA < dateB) return 1;  // a comes before b for descending date
+
+                    // If dates are equal, compare times (descending)
+                    if (a.time > b.time) return -1; // b comes before a for descending time
+                    if (a.time < b.time) return 1;  // a comes before b for descending time
+
+                    return 0; // Objects are equal
+                });
+            };
+
             // Renders the table content based on the reports array
             const renderTable = () => {
                 tableBody.innerHTML = '';
@@ -216,6 +234,7 @@
                 }
 
                 reports.push({ description, date, time, reporter, logType });
+                sortReports(); // Sort after adding
                 renderTable();
                 resetForm(); // Reset form after adding
             };
@@ -236,6 +255,7 @@
 
                 if (editingReportIndex !== null) {
                     reports[editingReportIndex] = { description, date, time, reporter, logType };
+                    sortReports(); // Sort after updating
                     renderTable();
                     resetForm(); // Reset form after updating
                 }
@@ -259,6 +279,7 @@
                 if (e.target.classList.contains('delete-btn')) {
                     const index = parseInt(e.target.getAttribute('data-index'));
                     reports.splice(index, 1);
+                    sortReports(); // Sort after deleting
                     renderTable();
                     resetForm(); // Reset form in case deleted item was being edited
                 }
@@ -283,6 +304,7 @@
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
+            sortReports(); // Initial sort in case of pre-existing data (not applicable here, but good practice)
             renderTable();
         });
     </script>
