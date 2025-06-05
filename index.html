@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שלד טבלה</title>
+    <title>יומן אירועים</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         /* Custom styles for the table to match the image's appearance */
         body {
@@ -17,6 +19,32 @@
             align-items: center; /* Center content horizontally */
             min-height: 100vh;
             padding: 20px;
+        }
+        .header-top-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+        }
+        .header-top-left {
+            background-color: #ffcc00; /* Yellow background for "הערכת מצב בשעה" */
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            padding: 12px 16px;
+            border-radius: 8px;
+            position: relative; /* Needed for absolute positioning of cell number */
+        }
+        .digital-clock {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: red;
+            background-color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .table-container {
             background-color: #ffffff;
@@ -57,18 +85,6 @@
         }
         tr:hover {
             background-color: #f0f4f8; /* Hover effect for rows */
-        }
-        .header-top-left {
-            background-color: #ffcc00; /* Yellow background for "הערכת מצב בשעה" */
-            color: #000;
-            font-weight: bold;
-            text-align: center;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px; /* Space below header */
-            width: 100%; /* Full width */
-            max-width: 1200px; /* Match table max-width */
-            position: relative; /* Needed for absolute positioning of cell number */
         }
         .dropdown-cell {
             position: relative;
@@ -290,10 +306,12 @@
     </style>
 </head>
 <body class="bg-gray-100 p-4">
-    <!-- Top left header as seen in the image, conceptually A1/A2 -->
-    <div class="header-top-left" id="header-top-left">
-        הערכת מצב בשעה 13:00
-        <span class="cell-number">A2</span>
+    <div class="header-top-area">
+        <div class="header-top-left" id="header-top-left">
+            הערכת מצב בשעה 13:00
+            <span class="cell-number">A2</span>
+        </div>
+        <div id="digital-clock" class="digital-clock">00:00</div>
     </div>
 
     <!-- Error Message Display -->
@@ -370,6 +388,10 @@
         טוען נתונים...
     </div>
 
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/he.js"></script> <!-- Hebrew locale -->
+
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -427,6 +449,8 @@
             const submitButton = document.getElementById('submitButton'); // Get the new button
             const loadingIndicator = document.getElementById('loading-indicator');
             const errorDisplay = document.getElementById('error-display');
+            const digitalClock = document.getElementById('digital-clock');
+
 
             // Options for dropdowns
             const reporterNames = ["שונית", "אורי", "יעקב", "משה"];
@@ -436,14 +460,24 @@
             let lastReporterValue = '';
             let lastJournalValue = '';
 
-            // Helper to parse DD/MM/YYYY and HH:MM or HH:MM:SS into a Date object
+            // Function to update digital clock
+            function updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                digitalClock.textContent = `${hours}:${minutes}`;
+            }
+            setInterval(updateClock, 1000); // Update every second
+            updateClock(); // Initial call
+
+            // Helper to parse DD/MM/YYYY and HH:MM into a Date object
             function parseDateTime(dateStr, timeStr) {
                 if (!dateStr || !timeStr) return null;
                 const [day, month, year] = dateStr.split('/').map(Number);
                 const timeParts = timeStr.split(':').map(Number);
                 const hours = timeParts[0];
                 const minutes = timeParts[1];
-                const seconds = timeParts.length > 2 ? timeParts[2] : 0; // Handle HH:MM or HH:MM:SS
+                const seconds = 0; // Always 0 as we remove seconds
 
                 // Month is 0-indexed in JavaScript Date constructor (January is 0, December is 11)
                 const date = new Date(year, month - 1, day, hours, minutes, seconds);
@@ -520,17 +554,21 @@
 
                     // If date or time is edited, reconstruct eventTimestamp for sorting
                     if (fieldName === 'date' || fieldName === 'time') {
-                        const currentDateStr = row.querySelector('input[data-field="date"]').value;
-                        const currentTimeStr = row.querySelector('input[data-field="time"]').value;
+                        // Get current values of BOTH date and time fields from the row
+                        const currentDateInput = row.querySelector('input[data-field="date"]');
+                        const currentTimeInput = row.querySelector('input[data-field="time"]');
+
+                        const currentDateStr = currentDateInput ? currentDateInput.value : '';
+                        const currentTimeStr = currentTimeInput ? currentTimeInput.value : '';
 
                         const fullDateTime = parseDateTime(currentDateStr, currentTimeStr);
                         if (fullDateTime) {
                             updateData.eventTimestamp = fullDateTime.getTime();
                         } else {
-                            console.warn("Could not parse date/time for eventTimestamp calculation:", currentDateStr, currentTimeStr);
-                            // If parsing fails, you might want to remove the eventTimestamp or set it to null
-                            // to avoid issues, or use a default, depending on desired behavior.
-                            // For now, we'll just log a warning and not update eventTimestamp.
+                            console.warn("Could not parse date/time for eventTimestamp calculation:", currentDateStr, currentTimeStr, "for docId:", docId);
+                            // If parsing fails, ensure eventTimestamp is not set to an invalid value
+                            // or remove it if the date/time is invalid.
+                            updateData.eventTimestamp = null; // Set to null if parsing fails
                         }
                     }
 
@@ -655,10 +693,9 @@
                         tdDate.className = 'col-date';
                         const dateInput = document.createElement('input');
                         dateInput.type = 'text';
-                        dateInput.className = 'cell-input';
+                        dateInput.className = 'cell-input date-picker'; // Add class for Flatpickr
                         dateInput.value = data.date || '';
                         dateInput.dataset.field = 'date'; // Add data-field attribute
-                        dateInput.addEventListener('blur', handleCellEdit); // Save on blur
                         tdDate.appendChild(dateInput);
                         row.appendChild(tdDate);
 
@@ -667,10 +704,9 @@
                         tdTime.className = 'col-time';
                         const timeInput = document.createElement('input');
                         timeInput.type = 'text';
-                        timeInput.className = 'cell-input';
+                        timeInput.className = 'cell-input time-picker'; // Add class for Flatpickr
                         timeInput.value = data.time || '';
                         timeInput.dataset.field = 'time'; // Add data-field attribute
-                        timeInput.addEventListener('blur', handleCellEdit); // Save on blur
                         tdTime.appendChild(timeInput);
                         row.appendChild(tdTime);
 
@@ -688,6 +724,36 @@
 
                         tableBody.appendChild(row);
                     });
+
+                    // Initialize Flatpickr on newly added date and time inputs
+                    // Ensure window.flatpickr is used for global access
+                    if (window.flatpickr) {
+                        window.flatpickr(".date-picker", {
+                            dateFormat: "d/m/Y",
+                            locale: "he",
+                            onChange: function(selectedDates, dateStr, instance) {
+                                // Manually trigger handleCellEdit on change for date picker
+                                const event = new Event('blur', { bubbles: true }); // Use blur to trigger save
+                                instance.input.dispatchEvent(event);
+                            }
+                        });
+                        window.flatpickr(".time-picker", {
+                            enableTime: true,
+                            noCalendar: true,
+                            dateFormat: "H:i", // Format without seconds
+                            time_24hr: true,
+                            locale: "he",
+                             onChange: function(selectedDates, dateStr, instance) {
+                                // Manually trigger handleCellEdit on change for time picker
+                                const event = new Event('blur', { bubbles: true }); // Use blur to trigger save
+                                instance.input.dispatchEvent(event);
+                            }
+                        });
+                    } else {
+                        console.warn("Flatpickr library not loaded. Date/time pickers may not initialize.");
+                    }
+
+
                     updateCellNumbers(); // Update cell numbers after all rows are rendered
                     showLoading(false);
                 }, (error) => {
@@ -725,8 +791,9 @@
                 }
 
                 const now = new Date();
-                const date = now.toLocaleDateString('he-IL'); // DD/MM/YYYY
-                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); // HH:MM:SS
+                const date = now.toLocaleDateString('he-IL');
+                // Use hour: '2-digit', minute: '2-digit' to remove seconds
+                const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }); 
 
                 // Calculate eventTimestamp for the new entry
                 const eventTimestamp = parseDateTime(date, time)?.getTime() || null;
