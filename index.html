@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The structure consolidates all input into a primary section at the top, allowing for both adding new entries and editing existing ones. This main input area is followed by global filter/selection dropdowns that set defaults for new entries and reflect values during editing. The main content area displays the data in a clear table, providing direct 'Edit' and 'Delete' actions for each entry. This top-to-bottom flow (Input/Controls -> Data Display) is intuitive for managing reports, prioritizing user understanding and ease of navigation by centralizing core interactions. -->
-    <!-- Visualization & Content Choices: Report Data -> Goal: Organize/Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update'. Clicking 'Delete' removes a row. The dropdowns pre-fill the form and reflect current report values. Justification: A form and table are standard for structured data. Consolidating add/edit into one form simplifies the UI. Direct table actions enhance usability. This approach is user-friendly and efficient for the primary task of logging and managing reports. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsiveness. -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area now features all core input elements (report description, reporter, log type, and action buttons) arranged horizontally on larger screens for compact and efficient interaction. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table, providing direct 'Edit' and 'Delete' actions for each entry. This streamlined structure prioritizes a clear and intuitive user flow for managing reports. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update'. Clicking 'Delete' removes a row. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. The table provides clear data overview and direct management actions. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
@@ -59,48 +59,53 @@
         <main class="bg-white rounded-xl shadow-lg p-6 ring-1 ring-[#EAE2D9]">
             <div class="controls-section mb-6 pb-6 border-b border-[#EAE2D9]">
                 
-                <!-- Main Input and Action Area -->
-                <div class="max-w-xl mx-auto mb-6 p-4 bg-[#F8F5F1] rounded-lg shadow-inner">
-                    <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
-                    <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md mb-4" rows="4" placeholder="הזן פרטי אירוע, דגשים, ומסקנות..."></textarea>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="newDate" class="block mb-1 text-sm font-medium">תאריך:</label>
-                            <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
+                <!-- Main Input and Action Area - Now consolidated to a single row concept -->
+                <div class="max-w-full mx-auto mb-6 p-4 bg-[#F8F5F1] rounded-lg shadow-inner">
+                    <div class="flex flex-col sm:flex-row items-end gap-4">
+                        <div class="flex-grow w-full sm:w-auto"> <!-- Textarea takes primary space -->
+                            <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
+                            <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md" rows="2" placeholder="פרטי דיווח קצרים..."></textarea>
                         </div>
-                        <div>
-                            <label for="newTime" class="block mb-1 text-sm font-medium">שעה:</label>
-                            <input type="time" id="newTime" class="form-input w-full p-2 border rounded-md">
+                        
+                        <div class="flex-shrink-0 w-full sm:w-auto"> <!-- Reporter dropdown -->
+                            <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">מדווח:</label>
+                            <select id="filterReporter" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
+                                <option value="אורי">אורי</option>
+                                <option value="שונית">שונית</option>
+                                <option value="חיליק">חיליק</option>
+                            </select>
                         </div>
-                    </div>
-                    
-                    <div class="flex justify-center mt-4">
-                        <button id="mainActionBtn" class="btn-primary font-bold py-2 px-8 rounded-lg shadow">הזן</button>
-                        <button id="cancelEditBtn" class="btn-secondary font-bold py-2 px-8 rounded-lg shadow ml-4 hidden">ביטול עריכה</button>
+                        
+                        <div class="flex-shrink-0 w-full sm:w-auto"> <!-- Log Type dropdown -->
+                            <label for="filterLogType" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שיוך:</label>
+                            <select id="filterLogType" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
+                                <option value="שגרה">שגרה</option>
+                                <option value="שריפה">שריפה</option>
+                                <option value="אחר">אחר</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex-shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-end gap-2"> <!-- Action buttons -->
+                            <button id="mainActionBtn" class="btn-primary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto">הזן</button>
+                            <button id="cancelEditBtn" class="btn-secondary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto hidden">ביטול</button>
+                        </div>
                     </div>
                     <div id="inputErrorMessage" class="text-red-500 text-center mt-4 h-5"></div>
                 </div>
 
-                <!-- Filter Dropdowns -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+                <!-- Hidden date and time inputs - remain hidden but functional -->
+                <div class="hidden">
                     <div>
-                        <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שם המדווח (לבחירה אוטומטית):</label>
-                        <select id="filterReporter" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
-                            <option value="אורי">אורי</option>
-                            <option value="שונית">שונית</option>
-                            <option value="חיליק">חיליק</option>
-                        </select>
+                        <label for="newDate" class="block mb-1 text-sm font-medium">תאריך:</label>
+                        <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
                     </div>
                     <div>
-                        <label for="filterLogType" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">שיוך יומן (לבחירה אוטומטית):</label>
-                        <select id="filterLogType" class="form-select w-full p-2.5 bg-white border rounded-lg shadow-sm">
-                            <option value="שגרה">שגרה</option>
-                            <option value="שריפה">שריפה</option>
-                            <option value="אחר">אחר</option>
-                        </select>
+                        <label for="newTime" class="block mb-1 text-sm font-medium">שעה:</label>
+                        <input type="time" id="newTime" class="form-input w-full p-2 border rounded-md">
                     </div>
                 </div>
+
+                <!-- The original filter dropdowns div is removed as they are now part of the main input area -->
             </div>
 
             <div class="table-container overflow-x-auto">
@@ -123,8 +128,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <!-- Removed the redundant add-report-form section -->
         </main>
 
     </div>
@@ -135,8 +138,8 @@
             const filterLogType = document.getElementById('filterLogType');
             
             const generalTextInput = document.getElementById('generalTextInput');
-            const newDateInput = document.getElementById('newDate');
-            const newTimeInput = document.getElementById('newTime');
+            const newDateInput = document.getElementById('newDate'); // Hidden, but functional
+            const newTimeInput = document.getElementById('newTime'); // Hidden, but functional
 
             const mainActionBtn = document.getElementById('mainActionBtn');
             const cancelEditBtn = document.getElementById('cancelEditBtn');
@@ -194,8 +197,8 @@
                 mainActionBtn.textContent = 'הזן';
                 cancelEditBtn.classList.add('hidden');
                 inputErrorMessage.textContent = '';
-                // Set reporter/logType dropdowns back to their default selected options
-                // (This is implicitly handled if the user didn't change them from previous state)
+                // The dropdowns retain their last selected value as per design,
+                // which will be used for new entries unless changed by the user.
             };
 
             // Adds a new report
@@ -249,9 +252,6 @@
 
             // Handles the click on the cancel edit button
             cancelEditBtn.addEventListener('click', resetForm);
-
-            // Event listener for filter dropdowns (implicitly sets default for new entries)
-            // No direct action needed here other than potential future filtering of the table display
             
             // Event delegation for table actions (edit and delete)
             tableBody.addEventListener('click', (e) => {
