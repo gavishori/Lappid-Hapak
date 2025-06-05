@@ -384,16 +384,16 @@
         // Fallback for firebaseConfig if projectId or apiKey is missing (crucial for Uncaught FirebaseError)
         // Note: For actual deployment, replace "YOUR_API_KEY" and "YOUR_PROJECT_ID" with real Firebase project details.
         const defaultFirebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "default-project-id", // Use a placeholder if not provided by Canvas
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "YOUR_API_KEY", // <--- החלף את זה במפתח ה-API האמיתי שלך מ-Firebase Console
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // <--- החלף את זה במזהה הפרויקט האמיתי שלך מ-Firebase Console
+            projectId: "default-project-id", // <--- החלף גם את זה במזהה הפרויקט האמיתי שלך
+            storageBucket: "YOUR_PROJECT_ID.appspot.com", // <--- החלף את זה במזהה הפרויקט האמיתי שלך
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // <--- החלף את זה ב-Messaging Sender ID האמיתי שלך
+            appId: "YOUR_APP_ID" // <--- החלף את זה ב-App ID האמיתי שלך
         };
 
-        if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY") {
-            console.error("Firebase projectId or apiKey is missing/default. Using fallback configuration. Please ensure your Firebase project details are correctly configured.");
+        if (!firebaseConfig.projectId || firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "default-project-id") {
+            console.error("Firebase projectId or apiKey is missing/default. Using fallback configuration. Please ensure your Firebase project details are correctly configured in the Canvas variables.");
             firebaseConfig = { ...defaultFirebaseConfig, ...firebaseConfig }; // Merge to preserve any provided values
         }
 
