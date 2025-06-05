@@ -100,7 +100,6 @@
             right: 2px;
             font-size: 0.7em;
             color: #888;
-            background-color: rgba(255, 255, 255, 0.7);
             padding: 1px 4px;
             border-radius: 4px;
             z-index: 1;
@@ -471,26 +470,8 @@
                     const currentReporterSelect = currentRow.children[3] ? currentRow.children[3].querySelector('.reporter-name-select') : null;
                     const currentJournalSelect = currentRow.children[4] ? currentRow.children[4].querySelector('.journal-assignment-select') : null;
 
-                    const reporterNameFromOldA3 = currentReporterSelect ? currentReporterSelect.value : '';
-                    const journalAssignmentFromOldA3 = currentJournalSelect ? currentJournalSelect.value : '';
-
-                    // Get data from the row below the old A3 (which is currentRow's next sibling, and will become A5)
-                    const nextRow = currentRow.nextElementSibling;
-                    let reporterNameFromOldA4 = '';
-                    let journalAssignmentFromOldA4 = '';
-
-                    if (nextRow) {
-                        const nextRowReporterSelect = nextRow.children[3] ? nextRow.children[3].querySelector('.reporter-name-select') : null;
-                        reporterNameFromOldA4 = nextRowReporterSelect ? nextRowReporterSelect.value : '';
-
-                        const nextRowJournalSelect = nextRow.children[4] ? nextRow.children[4].querySelector('.journal-assignment-select') : null;
-                        journalAssignmentFromOldA4 = nextRowJournalSelect ? nextRowJournalSelect.value : '';
-                    }
-
-                    // Determine values for the new A3 row based on fallback logic
-                    let newA3ReporterValue = reporterNameFromOldA3 || reporterNameFromOldA4;
-                    let newA3JournalValue = journalAssignmentFromOldA3 || journalAssignmentFromOldA4;
-
+                    const reporterNameValue = currentReporterSelect ? currentReporterSelect.value : '';
+                    const journalAssignmentValue = currentJournalSelect ? currentJournalSelect.value : '';
 
                     // Get current date and time
                     const now = new Date();
@@ -512,9 +493,10 @@
                         <td class="dropdown-cell"></td>
                     `;
                     // Append select elements to the new empty row's dropdown cells,
-                    // defaulting to the determined values (with fallback)
-                    newEmptyInputRow.children[3].appendChild(createSelectElement(reporterNames, newA3ReporterValue, 'reporter-name-select'));
-                    newEmptyInputRow.children[4].appendChild(createSelectElement(journalAssignments, newA3JournalValue, 'journal-assignment-select'));
+                    // defaulting to the values that were just in the old A3 (now A4)
+                    // The values are taken from the current D3 and E3 of the row that is about to move down.
+                    newEmptyInputRow.children[3].appendChild(createSelectElement(reporterNames, reporterNameValue, 'reporter-name-select'));
+                    newEmptyInputRow.children[4].appendChild(createSelectElement(journalAssignments, journalAssignmentValue, 'journal-assignment-select'));
 
 
                     // Insert the new empty row before the current row
@@ -551,12 +533,12 @@
                     // For column D (שם המדווח): replace content with a new select
                     currentRow.children[3].innerHTML = ''; // Clear existing content
                     currentRow.children[3].className = 'dropdown-cell'; // Ensure class is present
-                    currentRow.children[3].appendChild(createSelectElement(reporterNames, reporterNameFromOldA3, 'reporter-name-select'));
+                    currentRow.children[3].appendChild(createSelectElement(reporterNames, reporterNameValue, 'reporter-name-select'));
 
                     // For column E (שיוך יומן): replace content with a new select
                     currentRow.children[4].innerHTML = ''; // Clear existing content
                     currentRow.children[4].className = 'dropdown-cell'; // Ensure class is present
-                    currentRow.children[4].appendChild(createSelectElement(journalAssignments, journalAssignmentFromOldA3, 'journal-assignment-select'));
+                    currentRow.children[4].appendChild(createSelectElement(journalAssignments, journalAssignmentValue, 'journal-assignment-select'));
 
 
                     // Reassign inputA3 to the new input element in the new empty row
