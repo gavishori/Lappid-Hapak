@@ -353,8 +353,23 @@
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase (provided by Canvas environment)
+        // Ensure that firebaseConfig has a projectId. If not provided by Canvas, use a fallback for testing.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        let firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // Fallback for firebaseConfig if projectId is missing (crucial for Uncaught FirebaseError)
+        if (!firebaseConfig.projectId) {
+            console.warn("Firebase projectId is missing from __firebase_config. Using a fallback configuration.");
+            firebaseConfig = {
+                apiKey: "YOUR_API_KEY", // Replace with actual API key if needed for external deployment
+                authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+                projectId: "default-project-id", // Fallback Project ID
+                storageBucket: "YOUR_PROJECT_ID.appspot.com",
+                messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+                appId: "YOUR_APP_ID"
+            };
+        }
+
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
