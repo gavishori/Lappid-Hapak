@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>יומן חפ"ק - לפיד</title>
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are hidden by default and only appear when editing an existing report. When visible for editing, the date input uses a native picker, and the time input allows direct manual typing. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table now features date-based grouping with expand/collapse functionality (default collapsed for non-today dates) and global expand/collapse controls. Sorting is hybrid: new additions go to top (LIFO), updates trigger full chronological sort. -->
-    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & Grouped Collapsible HTML Table -> Interaction: Users input data via form. Add button is LIFO. Update button triggers full chronological sort. Edit button reveals date/time inputs for modification. Date input is type="date". Time input is type="text" with manual input. Global/per-day buttons control collapse state. Textarea auto-resizes in add mode, fixed height in edit. Justification: Enhanced usability for data entry and review, clear visual organization, and precise adherence to complex sorting requirements. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsiveness. -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management, now with data persistence via Firestore. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are hidden by default and only appear when editing an existing report. When visible for editing, the date input uses a native picker, and the time input allows direct manual typing. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table now features date-based grouping with expand/collapse functionality (default collapsed for non-today dates) and global expand/collapse controls. Sorting has a hybrid behavior: new additions always go to top (LIFO), while updates trigger a full chronological sort (date descending, then time descending) for the entire table. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage/Persist -> Presentation: Consolidated HTML Form (for add/edit) & Grouped Collapsible HTML Table -> Interaction: Users input data via form. Add button is LIFO (visual). Update button triggers full chronological sort. Edit button reveals date/time inputs for modification. Date input is type="date". Time input is type="text" with manual input. Global/per-day buttons control collapse state. Textarea auto-resizes in add mode, fixed height in edit. Data is persisted to Firestore. Justification: Enhanced usability for data entry and review, clear visual organization, precise adherence to complex sorting requirements, and critical data persistence. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsiveness, Firebase Firestore for data persistence, Firebase Auth for user management. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
@@ -68,6 +72,7 @@
 
         <header class="text-center mb-6">
             <h1 class="text-3xl md:text-4xl font-bold text-[#6D5F53]">יומן חפ"ק - לפיד</h1>
+            <p id="userIdDisplay" class="text-sm text-[#8C7A6B] mt-2"></p> <!-- User ID display -->
         </header>
 
         <main class="bg-white rounded-xl shadow-lg p-6 ring-1 ring-[#EAE2D9]">
@@ -147,407 +152,461 @@
 
     </div>
 
-    <script>
-        let reports = []; // Global scope: holds all reports
-        let editingReportIndex = null; // Global scope: index of report being edited
-        let lastAddedReportId = null; // Global scope: ID of the report most recently added (for LIFO top display)
-        let collapsedGroups = new Set(); // Global scope: Stores dates (YYYY-MM-DD) of currently collapsed groups
+    <script type="module">
+        // Firebase global variables
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, setDoc, onSnapshot, query, orderBy, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const filterReporter = document.getElementById('filterReporter');
-            const filterLogType = document.getElementById('filterLogType');
-            
-            const generalTextInput = document.getElementById('generalTextInput');
-            const newDateInput = document.getElementById('newDate'); 
-            const newTimeInput = document.getElementById('newTime'); 
-            const dateTimeInputsWrapper = document.getElementById('dateTimeInputsWrapper'); 
+        // Global variables for Firebase and App State
+        let db;
+        let auth;
+        let userId;
+        let reportsCollectionRef;
+        let isAuthReady = false; 
 
-            const mainActionBtn = document.getElementById('mainActionBtn');
-            const cancelEditBtn = document.getElementById('cancelEditBtn');
-            const tableBody = document.getElementById('reportTableBody');
-            const emptyStateRow = document.getElementById('empty-state');
-            const inputErrorMessage = document.getElementById('inputErrorMessage');
+        let reports = []; 
+        let editingReportIndex = null; 
+        let lastAddedReportId = null; 
+        let collapsedGroups = new Set(); 
 
-            const expandAllBtn = document.getElementById('expandAllBtn');
-            const collapseAllBtn = document.getElementById('collapseAllBtn');
+        // Global DOM element references (initialized in DOMContentLoaded)
+        let filterReporter;
+        let filterLogType;
+        let generalTextInput;
+        let newDateInput; 
+        let newTimeInput; 
+        let dateTimeInputsWrapper; 
+        let mainActionBtn;
+        let cancelEditBtn;
+        let tableBody;
+        let emptyStateRow;
+        let inputErrorMessage;
+        let expandAllBtn;
+        let collapseAllBtn;
 
-            // --- Auto-resize Textarea Logic ---
-            const autoResizeTextarea = (textarea) => {
-                textarea.style.height = 'auto'; // Reset height to recalculate
-                textarea.style.height = (textarea.scrollHeight) + 'px'; // Set height based on content
-            };
 
-            // Event listener for input on the general text area
-            generalTextInput.addEventListener('input', () => {
-                // Only auto-resize if not in edit mode
-                if (editingReportIndex === null) {
-                    autoResizeTextarea(generalTextInput);
-                }
-            });
-            // --- End Auto-resize Textarea Logic ---
+        // Initialize Firebase and set up listener
+        const initializeFirebaseAndListeners = async () => {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            // Sets default date and time in the input fields (used for initial load and after reset)
-            const setDefaultDateTime = () => {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = (now.getMonth() + 1).toString().padStart(2, '0');
-                const day = now.getDate().toString().padStart(2, '0');
-                newDateInput.value = `${year}-${month}-${day}`;
-                
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                newTimeInput.value = `${hours}:${minutes}`; 
-            };
-            
-            // Function to validate time format (HH:MM)
-            const isValidTimeFormat = (timeString) => {
-                const pattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-                return pattern.test(timeString);
-            };
+                // Authenticate and set up listener
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('userIdDisplay').textContent = `מזהה משתמש: ${userId}`;
+                        reportsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/reports`);
+                        isAuthReady = true;
 
-            // Function to format date as DD/MM/YYYY
-            const formatAsDDMMYYYY = (dateString) => {
-                const date = new Date(dateString);
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const year = date.getFullYear();
-                return `${day}/${month}/${year}`;
-            };
-
-            // Function to sort reports by date (descending) then time (descending) - operates on reports array
-            const sortChronologically = () => { 
-                reports.sort((a, b) => { // Sorts the global 'reports' array directly
-                    const dateA = new Date(a.date);
-                    const dateB = new Date(b.date);
-
-                    if (dateA > dateB) return -1; 
-                    if (dateA < dateB) return 1;  
-
-                    if (a.time > b.time) return -1; 
-                    if (a.time < b.time) return 1;  
-
-                    return 0; 
-                });
-            };
-
-            // Renders the table content based on the reports array and current sorting rules
-            const renderTable = () => {
-                tableBody.innerHTML = ''; // Clear existing table body
-                
-                if (reports.length === 0) {
-                    tableBody.appendChild(emptyStateRow);
-                    console.log('No reports to display.');
-                    return;
-                }
-
-                let displayListForProcessing = [...reports]; // Start with a copy for processing
-
-                // Apply hybrid sorting logic:
-                // Rule 1: The last NEWLY ADDED report always at the top.
-                if (lastAddedReportId) {
-                    const lastAddedIndex = displayListForProcessing.findIndex(report => report.id === lastAddedReportId);
-                    if (lastAddedIndex !== -1) {
-                        const [topReport] = displayListForProcessing.splice(lastAddedIndex, 1); // Remove it
-                        displayListForProcessing.unshift(topReport); // Add it to the very beginning
+                        // Set up real-time listener for reports
+                        // Use orderBy('timestamp', 'desc') to get initial data sorted by insertion/update time
+                        onSnapshot(query(reportsCollectionRef, orderBy('timestamp', 'desc')), (snapshot) => {
+                            reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            reports = reports.filter(report => report.timestamp); 
+                            renderTable(); // Re-render table whenever data changes in Firestore
+                        });
                     } else {
-                        // lastAddedReportId not found, clear it, implies we fall back to other rules
-                        lastAddedReportId = null;
+                        // Sign in anonymously if no user is authenticated
+                        if (typeof __initial_auth_token !== 'undefined') {
+                            try {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } catch (error) {
+                                console.error("Error signing in with custom token:", error);
+                                await signInAnonymously(auth); // Fallback to anonymous if custom token fails
+                            }
+                        } else {
+                            await signInAnonymously(auth);
+                        }
                     }
+                });
+
+            } catch (error) {
+                console.error("Error initializing Firebase or signing in:", error);
+                // Using console.error instead of alert to avoid blocking UI in an iframe
+                console.error("שגיאה באתחול האפליקציה: " + error.message);
+            }
+        };
+
+        // --- Auto-resize Textarea Logic ---
+        const autoResizeTextarea = (textarea) => {
+            textarea.style.height = 'auto'; 
+            textarea.style.height = (textarea.scrollHeight) + 'px'; 
+        };
+
+        // Sets default date and time in the input fields (used for initial load and after reset)
+        const setDefaultDateTime = () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            newDateInput.value = `${year}-${month}-${day}`;
+            
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            newTimeInput.value = `${hours}:${minutes}`; 
+        };
+        
+        // Function to validate time format (HH:MM)
+        const isValidTimeFormat = (timeString) => {
+            const pattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            return pattern.test(timeString);
+        };
+
+        // Function to format date as DD/MM/YYYY
+        const formatAsDDMMYYYY = (dateString) => {
+            const date = new Date(dateString);
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
+
+        // Function to sort reports by date (descending) then time (descending) - operates on an array COPY
+        const sortChronologically = (arrToSort) => { 
+            return [...arrToSort].sort((a, b) => { 
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+
+                if (dateA > dateB) return -1; 
+                if (dateA < dateB) return 1;  
+
+                if (a.time > b.time) return -1; 
+                if (a.time < b.time) return 1;  
+
+                return 0; 
+            });
+        };
+
+        // Renders the table content based on the reports array and current sorting rules
+        const renderTable = () => {
+            tableBody.innerHTML = ''; // Clear existing table body
+            
+            if (reports.length === 0) {
+                tableBody.appendChild(emptyStateRow);
+                console.log('No reports to display.');
+                return;
+            }
+
+            let finalDisplayList = [...reports]; 
+
+            // Apply hybrid sorting logic:
+            // Rule 1: The last NEWLY ADDED report always at the top.
+            if (lastAddedReportId) {
+                const lastAddedIndex = finalDisplayList.findIndex(report => report.id === lastAddedReportId);
+                if (lastAddedIndex !== -1) {
+                    const [topReport] = finalDisplayList.splice(lastAddedIndex, 1); 
+                    finalDisplayList.unshift(topReport); 
+                } else {
+                    lastAddedReportId = null; 
                 }
-                
-                // Group reports by date for rendering
-                const groupedReports = new Map();
-                displayListForProcessing.forEach(report => {
-                    const dateKey = report.date; // YYYY-MM-DD format
-                    if (!groupedReports.has(dateKey)) {
-                        groupedReports.set(dateKey, []);
-                    }
-                    groupedReports.get(dateKey).push(report);
-                });
+            }
+            
+            // Group reports by date for rendering
+            const groupedReports = new Map();
+            finalDisplayList.forEach(report => {
+                const dateKey = report.date; 
+                if (!groupedReports.has(dateKey)) {
+                    groupedReports.set(dateKey, []);
+                }
+                groupedReports.get(dateKey).push(report);
+            });
 
-                // Sort the date keys for displaying date groups chronologically (descending)
-                const sortedDateKeys = Array.from(groupedReports.keys()).sort((a, b) => {
-                    return new Date(b) - new Date(a);
-                });
+            // Sort the date keys for displaying date groups chronologically (descending)
+            const sortedDateKeys = Array.from(groupedReports.keys()).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
 
-                const today = new Date();
-                const todayKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+            const today = new Date();
+            const todayKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
 
-                sortedDateKeys.forEach(dateKey => {
-                    const reportsForDate = groupedReports.get(dateKey);
-                    const isToday = dateKey === todayKey;
-                    const isCollapsed = collapsedGroups.has(dateKey); // Check current collapse state
+            sortedDateKeys.forEach(dateKey => {
+                const reportsForDate = groupedReports.get(dateKey);
+                const isToday = dateKey === todayKey;
+                const isCollapsed = collapsedGroups.has(dateKey); 
 
-                    // Date Header Row
-                    const headerRow = document.createElement('tr');
-                    headerRow.className = 'date-group-header bg-[#F8F5F1] border-b-2 border-[#DCD5CC]';
-                    headerRow.innerHTML = `
-                        <td colspan="6" class="p-3 font-bold text-[#6D5F53] text-right">
-                            <button class="toggle-day-btn text-blue-600 hover:text-blue-800 ml-2" data-toggle-date="${dateKey}">
-                                ${isCollapsed ? '◀' : '▼'}
-                            </button>
-                            ${formatAsDDMMYYYY(dateKey)}
+                // Date Header Row
+                const headerRow = document.createElement('tr');
+                headerRow.className = 'date-group-header bg-[#F8F5F1] border-b-2 border-[#DCD5CC]';
+                headerRow.innerHTML = `
+                    <td colspan="6" class="p-3 font-bold text-[#6D5F53] text-right">
+                        <button class="toggle-day-btn text-blue-600 hover:text-blue-800 ml-2" data-toggle-date="${dateKey}">
+                            ${isCollapsed ? '◀' : '▼'}
+                        </button>
+                        ${formatAsDDMMYYYY(dateKey)}
+                    </td>
+                `;
+                tableBody.appendChild(headerRow);
+
+                // Content Rows Wrapper (collapsible)
+                const reportsContainerRow = document.createElement('tr');
+                reportsContainerRow.className = `date-group-content ${isCollapsed ? 'hidden' : ''}`; 
+                reportsContainerRow.dataset.contentDate = dateKey; 
+
+                const reportsCell = document.createElement('td');
+                reportsCell.colSpan = 6;
+                reportsCell.className = 'p-0'; 
+
+                const innerTable = document.createElement('table'); 
+                innerTable.className = 'w-full text-sm';
+                const innerTbody = document.createElement('tbody');
+
+                // Render individual report rows inside the inner table
+                reportsForDate.forEach(report => {
+                    const reportRow = document.createElement('tr');
+                    reportRow.className = 'hover:bg-[#F8F5F1]';
+                    reportRow.innerHTML = `
+                        <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
+                        <td class="table-cell">${formatAsDDMMYYYY(report.date)}</td>
+                        <td class="table-cell">${report.time}</td>
+                        <td class="table-cell">${report.reporter}</td>
+                        <td class="table-cell">${report.logType}</td>
+                        <td class="table-cell text-center whitespace-nowrap">
+                            <button data-id="${report.id}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
                         </td>
                     `;
-                    tableBody.appendChild(headerRow);
+                    innerTbody.appendChild(reportRow);
+                });
 
-                    // Content Rows Wrapper (collapsible)
-                    const reportsContainerRow = document.createElement('tr');
-                    reportsContainerRow.className = `date-group-content ${isCollapsed ? 'hidden' : ''}`; // Apply hidden based on state
-                    reportsContainerRow.dataset.contentDate = dateKey; // For easy targeting
+                innerTable.appendChild(innerTbody);
+                reportsCell.appendChild(innerTable);
+                reportsContainerRow.appendChild(reportsCell);
+                tableBody.appendChild(reportsContainerRow);
+                
+                // Default collapse/expand logic for initial rendering
+                if (!isToday && !collapsedGroups.has(dateKey)) {
+                    collapsedGroups.add(dateKey);
+                    reportsContainerRow.classList.add('hidden');
+                    headerRow.querySelector('.toggle-day-btn').textContent = '◀';
+                }
+            });
 
-                    const reportsCell = document.createElement('td');
-                    reportsCell.colSpan = 6;
-                    reportsCell.className = 'p-0'; // Remove padding from this cell
-
-                    const innerTable = document.createElement('table'); // Inner table to hold reports for this day
-                    innerTable.className = 'w-full text-sm';
-                    const innerTbody = document.createElement('tbody');
-
-                    // Render individual report rows inside the inner table
-                    reportsForDate.forEach(report => {
-                        const reportRow = document.createElement('tr');
-                        reportRow.className = 'hover:bg-[#F8F5F1]';
-                        reportRow.innerHTML = `
-                            <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
-                            <td class="table-cell">${formatAsDDMMYYYY(report.date)}</td>
-                            <td class="table-cell">${report.time}</td>
-                            <td class="table-cell">${report.reporter}</td>
-                            <td class="table-cell">${report.logType}</td>
-                            <td class="table-cell text-center whitespace-nowrap">
-                                <button data-id="${report.id}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
-                            </td>
-                        </tr>
-                        `;
-                        innerTbody.appendChild(reportRow);
-                    });
-
-                    innerTable.appendChild(innerTbody);
-                    reportsCell.appendChild(innerTable);
-                    reportsContainerRow.appendChild(reportsCell);
-                    tableBody.appendChild(reportsContainerRow);
-                    
-                    // Default collapse/expand logic for initial rendering if not already set
-                    // If not today's date AND not already marked as collapsed, then collapse it.
-                    if (!isToday && !collapsedGroups.has(dateKey)) {
-                        collapsedGroups.add(dateKey);
-                        reportsContainerRow.classList.add('hidden');
-                        headerRow.querySelector('.toggle-day-btn').textContent = '◀';
+            // Attach event listeners for individual toggle buttons (delegation from tableBody would be more efficient)
+            tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dateToToggle = e.target.dataset.toggleDate;
+                    const contentRow = tableBody.querySelector(`tr[data-content-date="${dateToToggle}"]`);
+                    if (contentRow) {
+                        contentRow.classList.toggle('hidden');
+                        if (contentRow.classList.contains('hidden')) {
+                            e.target.textContent = '◀';
+                            collapsedGroups.add(dateToToggle);
+                        } else {
+                            e.target.textContent = '▼';
+                            collapsedGroups.delete(dateToToggle);
+                        }
                     }
                 });
+            });
+            
+            console.log('Current reports array (raw data from Firestore):', reports); 
+            console.log('Reports displayed in table (after hybrid sorting and grouping):', finalDisplayList);
+            console.log('Collapsed Groups State:', collapsedGroups);
+        };
 
-                // Attach event listeners for individual toggle buttons (delegation from tableBody would be more efficient)
-                tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const dateToToggle = e.target.dataset.toggleDate;
-                        const contentRow = tableBody.querySelector(`tr[data-content-date="${dateToToggle}"]`);
-                        if (contentRow) {
-                            contentRow.classList.toggle('hidden');
-                            if (contentRow.classList.contains('hidden')) {
-                                e.target.textContent = '◀';
-                                collapsedGroups.add(dateToToggle);
-                            } else {
-                                e.target.textContent = '▼';
-                                collapsedGroups.delete(dateToToggle);
-                            }
-                        }
-                    });
-                });
-                
-                console.log('Current reports array (internal storage order):', reports); 
-                console.log('Reports displayed in table (derived from internal order + LIFO/chronological + grouping):', displayListForProcessing);
-                console.log('Collapsed Groups State:', collapsedGroups);
+        // Clears the input fields and resets the form to "add new report" mode
+        const resetForm = () => {
+            generalTextInput.value = '';
+            generalTextInput.rows = 3; 
+            generalTextInput.style.height = 'auto'; 
+            generalTextInput.classList.remove('edit-mode-fixed-height'); 
+            autoResizeTextarea(generalTextInput); 
+
+            setDefaultDateTime(); 
+            generalTextInput.focus();
+            editingReportIndex = null; 
+            mainActionBtn.textContent = 'הזן';
+            cancelEditBtn.classList.add('hidden');
+            inputErrorMessage.textContent = '';
+            
+            dateTimeInputsWrapper.classList.add('hidden'); 
+
+            newDateInput.readOnly = false; 
+            newTimeInput.readOnly = false; 
+
+            renderTable(); 
+        };
+
+        // Adds a new report
+        const addReport = async () => { 
+            const description = generalTextInput.value.trim();
+            const date = newDateInput.value; 
+            const time = newTimeInput.value; 
+            
+            const reporter = filterReporter.value; 
+            const logType = filterLogType.value;   
+
+            if (!description) { 
+                inputErrorMessage.textContent = 'יש למלא את שדה תיאור הדיווח.';
+                setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                return;
+            }
+
+            if (!isAuthReady) {
+                inputErrorMessage.textContent = 'האפליקציה עדיין מתחברת, אנא המתן ונסה שוב.';
+                setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                return;
+            }
+
+            const newReportData = { 
+                description, 
+                date, 
+                time, 
+                reporter, 
+                logType,
+                timestamp: serverTimestamp() 
             };
 
-            // Clears the input fields and resets the form to "add new report" mode
-            const resetForm = () => {
-                generalTextInput.value = '';
-                // Reset textarea to initial 3 row height and auto-resize it for add mode
-                generalTextInput.rows = 3; // Set to initial rows
-                generalTextInput.style.height = 'auto'; // Clear inline height
-                generalTextInput.classList.remove('edit-mode-fixed-height'); // Remove fixed height class if present
-                autoResizeTextarea(generalTextInput); // Trigger initial auto-resize from 3 lines
+            try {
+                const docRef = await addDoc(reportsCollectionRef, newReportData);
+                // The onSnapshot listener will update 'reports' array and call renderTable.
+                // We just need to track the ID of the new report for LIFO display
+                lastAddedReportId = docRef.id; 
+                collapsedGroups.delete(newReportData.date); // Open the group for the newly added report
+                resetForm(); 
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                inputErrorMessage.textContent = 'שגיאה בהוספת הדיווח: ' + e.message;
+                setTimeout(() => inputErrorMessage.textContent = '', 5000);
+            }
+        };
 
-                setDefaultDateTime(); 
-                generalTextInput.focus();
-                editingReportIndex = null; // Clear index for editing
-                mainActionBtn.textContent = 'הזן';
-                cancelEditBtn.classList.add('hidden');
-                inputErrorMessage.textContent = '';
+        // Updates an existing report
+        const updateReport = async () => { 
+            const description = generalTextInput.value.trim();
+            const date = newDateInput.value; 
+            const time = newTimeInput.value; 
+
+            const reporter = filterReporter.value; 
+            const logType = filterLogType.value;   
+
+            if (!description || !date || !time) { 
+                inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
+                setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                return;
+            }
+            if (!isValidTimeFormat(time)) { 
+                inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
+                setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                return;
+            }
+
+            if (!isAuthReady || editingReportIndex === null) {
+                 inputErrorMessage.textContent = 'האפליקציה עדיין מתחברת או שאין דיווח לעדכן.';
+                 setTimeout(() => inputErrorMessage.textContent = '', 3000);
+                 return;
+            }
+
+            const reportToUpdateInFirestore = reports[editingReportIndex];
+            const docId = reportToUpdateInFirestore.id; 
+
+            const updatedData = {
+                description,
+                date,
+                time,
+                reporter,
+                logType,
+                timestamp: serverTimestamp() 
+            };
+
+            try {
+                await setDoc(doc(db, reportsCollectionRef.path, docId), updatedData);
+                // Firestore onSnapshot will fetch the updated list and trigger renderTable.
+                // It's crucial here to re-sort the 'reports' array based on the new data
+                // and then clear lastAddedReportId as this is an update, not a new add.
+                reports = sortChronologically(reports); // Sort the global reports array directly
+                lastAddedReportId = null; // Clear last added to ensure full chronological sort is dominant now
                 
-                // Hide date and time inputs after reset
-                dateTimeInputsWrapper.classList.add('hidden'); // Hide the entire wrapper
+                collapsedGroups.delete(updatedData.date); // Open the group for the updated report
 
-                // Ensure date and time inputs are fully editable (if shown again)
+                resetForm(); 
+            } catch (e) {
+                console.error("Error updating document: ", e);
+                inputErrorMessage.textContent = 'שגיאה בעדכון הדיווח: ' + e.message;
+                setTimeout(() => inputErrorMessage.textContent = '', 5000);
+            }
+        };
+
+        // Handles the click on the main action button (Add/Update)
+        mainActionBtn.addEventListener('click', () => {
+            if (editingReportIndex === null) {
+                addReport();
+            } else {
+                updateReport();
+            }
+        });
+
+        // Handles the click on the cancel edit button
+        cancelEditBtn.addEventListener('click', resetForm);
+        
+        // Event delegation for table actions (edit)
+        tableBody.addEventListener('click', (e) => {
+            // Edit button
+            if (e.target.classList.contains('edit-btn')) {
+                const reportIdToEdit = e.target.getAttribute('data-id');
+                const index = reports.findIndex(report => report.id === reportIdToEdit);
+                
+                if (index === -1) {
+                    console.error('Report not found for editing:', reportIdToEdit);
+                    return;
+                }
+
+                const reportToEdit = reports[index];
+                
+                // Populate inputs with report data
+                generalTextInput.value = reportToEdit.description;
+                newDateInput.value = reportToEdit.date;
+                newTimeInput.value = reportToEdit.time; 
+                filterReporter.value = reportToEdit.reporter; 
+                filterLogType.value = reportToEdit.logType;   
+                
+                editingReportIndex = index; 
+                mainActionBtn.textContent = 'עדכן דיווח'; 
+                cancelEditBtn.classList.remove('hidden'); 
+                
+                // SHOW date and time inputs when editing
+                dateTimeInputsWrapper.classList.remove('hidden'); 
+
+                // Set textarea to fixed height for edit mode
+                generalTextInput.rows = 5; 
+                generalTextInput.style.height = 'auto'; 
+                generalTextInput.classList.add('edit-mode-fixed-height'); 
+
+                // Date input should allow picker, not manual typing (type="date")
                 newDateInput.readOnly = false; 
+
+                // Time input should allow direct manual input (type="text")
                 newTimeInput.readOnly = false; 
 
-                renderTable(); // Re-render to reflect the reset state
-            };
-
-            // Adds a new report (LIFO for adds)
-            const addReport = () => {
-                const description = generalTextInput.value.trim();
-                const date = newDateInput.value; 
-                const time = newTimeInput.value; 
-                
-                const reporter = filterReporter.value; 
-                const logType = filterLogType.value;   
-
-                if (!description) { 
-                    inputErrorMessage.textContent = 'יש למלא את שדה תיאור הדיווח.';
-                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
-                    return;
-                }
-
-                const newReport = { 
-                    id: crypto.randomUUID(), 
-                    description, 
-                    date, 
-                    time, 
-                    reporter, 
-                    logType 
-                };
-                reports.unshift(newReport); // Add to the BEGINNING of the internal array
-                lastAddedReportId = newReport.id; // Mark this as the last added report
-                
-                // Ensure the new report's date group is expanded when added
-                collapsedGroups.delete(newReport.date); // Open the group for the newly added report
-
-                renderTable(); // Render (LIFO will be maintained)
-                resetForm(); 
-            };
-
-            // Updates an existing report (full chronological sort for updates)
-            const updateReport = () => {
-                const description = generalTextInput.value.trim();
-                const date = newDateInput.value; 
-                const time = newTimeInput.value; 
-
-                const reporter = filterReporter.value; 
-                const logType = filterLogType.value;   
-
-                if (!description || !date || !time) { 
-                    inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
-                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
-                    return;
-                }
-                if (!isValidTimeFormat(time)) { 
-                    inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
-                    setTimeout(() => inputErrorMessage.textContent = '', 3000);
-                    return;
-                }
-
-                if (editingReportIndex !== null) {
-                    const reportToUpdate = reports[editingReportIndex];
-                    reportToUpdate.description = description;
-                    reportToUpdate.date = date;
-                    reportToUpdate.time = time;
-                    reportToUpdate.reporter = reporter;
-                    reportToUpdate.logType = logType;
-
-                    // After update, apply full chronological sort to the ENTIRE reports array
-                    sortChronologically(); // Sorts the global 'reports' array directly
-                    lastAddedReportId = null; // Clear last added to ensure full chronological sort is dominant now
-                    
-                    // Ensure the updated report's new date group is expanded
-                    collapsedGroups.delete(reportToUpdate.date); // Open the group for the updated report
-
-                    renderTable(); // Render the newly sorted table
-                    resetForm(); 
-                }
-            };
-
-            // Handles the click on the main action button (Add/Update)
-            mainActionBtn.addEventListener('click', () => {
-                if (editingReportIndex === null) {
-                    addReport();
-                } else {
-                    updateReport();
-                }
-            });
-
-            // Handles the click on the cancel edit button
-            cancelEditBtn.addEventListener('click', resetForm);
-            
-            // Event delegation for table actions (edit)
-            tableBody.addEventListener('click', (e) => {
-                // Edit button
-                if (e.target.classList.contains('edit-btn')) {
-                    const reportIdToEdit = e.target.getAttribute('data-id');
-                    const index = reports.findIndex(report => report.id === reportIdToEdit);
-                    
-                    if (index === -1) {
-                        console.error('Report not found for editing:', reportIdToEdit);
-                        return;
-                    }
-
-                    const reportToEdit = reports[index];
-                    
-                    // Populate inputs with report data
-                    generalTextInput.value = reportToEdit.description;
-                    newDateInput.value = reportToEdit.date;
-                    newTimeInput.value = reportToEdit.time; 
-                    filterReporter.value = reportToEdit.reporter; 
-                    filterLogType.value = reportToEdit.logType;   
-                    
-                    editingReportIndex = index; 
-                    mainActionBtn.textContent = 'עדכן דיווח'; 
-                    cancelEditBtn.classList.remove('hidden'); 
-                    
-                    // SHOW date and time inputs when editing
-                    dateTimeInputsWrapper.classList.remove('hidden'); // Show the entire wrapper
-
-                    // Set textarea to fixed height for edit mode
-                    generalTextInput.rows = 5; // Set fixed rows for edit mode
-                    generalTextInput.style.height = 'auto'; // Clear inline height from auto-resize
-                    generalTextInput.classList.add('edit-mode-fixed-height'); // Add class for fixed height
-
-                    // Date input should allow picker, not manual typing (type="date")
-                    newDateInput.readOnly = false; // Ensures picker works
-
-                    // Time input should allow direct manual input (type="text")
-                    newTimeInput.readOnly = false; 
-
-                    generalTextInput.focus(); 
-                }
-            });
-
-            // Global expand/collapse buttons
-            if (expandAllBtn) {
-                expandAllBtn.addEventListener('click', () => {
-                    collapsedGroups.clear(); // Clear all collapsed states
-                    tableBody.querySelectorAll('.date-group-content').forEach(div => {
-                        div.classList.remove('hidden'); // Show all content rows
-                    });
-                    tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
-                        button.textContent = '▼'; // Update all toggle button arrows
-                    });
-                    // No need to call renderTable() here, direct DOM manipulation is sufficient and desired.
-                });
+                generalTextInput.focus(); 
             }
+        });
 
-            if (collapseAllBtn) {
-                collapseAllBtn.addEventListener('click', () => {
-                    collapsedGroups.clear(); 
-                    // Add all current date keys to collapsed state
-                    const allDateKeysInTable = Array.from(new Set(reports.map(r => r.date)));
-                    allDateKeysInTable.forEach(key => collapsedGroups.add(key));
-
-                    tableBody.querySelectorAll('.date-group-content').forEach(div => {
-                        div.classList.add('hidden'); // Hide all content rows
-                    });
-                    tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
-                        button.textContent = '◀'; // Update all toggle button arrows
-                    });
-                    // No need to call renderTable() here, direct DOM manipulation is sufficient and desired.
-                });
-            }
+        // DOMContentLoaded listener
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize global DOM element references
+            filterReporter = document.getElementById('filterReporter');
+            filterLogType = document.getElementById('filterLogType');
+            generalTextInput = document.getElementById('generalTextInput');
+            newDateInput = document.getElementById('newDate'); 
+            newTimeInput = document.getElementById('newTime'); 
+            dateTimeInputsWrapper = document.getElementById('dateTimeInputsWrapper'); 
+            mainActionBtn = document.getElementById('mainActionBtn');
+            cancelEditBtn = document.getElementById('cancelEditBtn');
+            tableBody = document.getElementById('reportTableBody');
+            emptyStateRow = document.getElementById('empty-state');
+            inputErrorMessage = document.getElementById('inputErrorMessage');
+            expandAllBtn = document.getElementById('expandAllBtn');
+            collapseAllBtn = document.getElementById('collapseAllBtn');
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
-            resetForm(); // Call resetForm to ensure initial textarea state is correct for add mode
-            renderTable(); 
+            resetForm(); 
+            initializeFirebaseAndListeners(); // Initialize Firebase and start listening
         });
     </script>
 </body>
