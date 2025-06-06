@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are now hidden by default and only appear when editing an existing report. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table strictly displays reports in a Last-In-First-Out (LIFO) order for new additions (most recent at top), with existing reports updating in place without changing their position. -->
-    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update', dynamically showing the date/time inputs. New reports are prepended to the display list. Updated reports remain in their original position. No explicit sorting is applied to the list. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. Dynamically showing date/time inputs only during edit simplifies the default add experience. Displaying reports in strict LIFO order for new entries, combined with in-place updates, provides a very direct and predictable interaction model. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are hidden by default and only appear when editing an existing report. When visible for editing, the date input uses a native picker, and the time input allows direct manual typing. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table sorting has a hybrid behavior: new additions always go to the top (LIFO), while updates trigger a full chronological sort (date descending, then time descending) for the entire table. This balances immediate visibility for new entries with predictable ordering after changes. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update', dynamically showing date/time inputs. The date input is type="date" enabling its native picker. The time input is type="text" and allows direct manual input, validated for HH:MM format. The "תיאור דיווח" textarea starts as 3 rows and auto-resizes in 'add' mode, but maintains a fixed (taller, 5 rows) height in 'edit' mode. Sorting logic: new additions are prepended to the array (LIFO display); updates trigger a full chronological sort (date desc, time desc) on the entire array. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. Dynamically showing flexible date/time inputs during edit streamlines the default add experience while providing direct input options. The hybrid sorting mechanism directly implements the user's specific requirements, prioritizing immediate display of new entries balanced with full chronological order after modifications. Dynamic textarea height in add mode improves initial aesthetics and usability while fixed height in edit mode provides ample space. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
@@ -46,6 +46,12 @@
         .btn-secondary:hover {
             background-color: #DCD5CC;
         }
+        /* Fixed height for textarea in edit mode */
+        .form-textarea.edit-mode-fixed-height {
+            height: auto !important; /* Override auto-sizing */
+            min-height: calc(1.5em * 5 + 1rem); /* 5 lines height roughly (line-height * rows + padding) */
+            resize: vertical; /* Allow manual resize if desired */
+        }
     </style>
 </head>
 <body class="bg-[#FDFBF7] text-[#4A443E]">
@@ -61,8 +67,9 @@
                 
                 <div class="max-w-full mx-auto mb-6 p-4 bg-[#F8F5F1] rounded-lg shadow-inner">
                     <div class="flex flex-col sm:flex-row items-end gap-4">
-                        <div class="flex-grow w-full sm:w-auto"> <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
-                            <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md" rows="2" placeholder="פרטי דיווח קצרים..."></textarea>
+                        <div class="flex-grow-[5] w-full sm:w-auto min-w-0"> <!-- Increased flex-grow for wider textarea -->
+                            <label for="generalTextInput" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תיאור דיווח:</label>
+                            <textarea id="generalTextInput" class="form-textarea w-full p-2 border rounded-md" rows="3" placeholder="פרטי דיווח קצרים..."></textarea>
                         </div>
                         
                         <div class="flex-shrink-0 w-full sm:w-auto"> <label for="filterReporter" class="block mb-1 text-sm font-semibold text-[#8C7A6B]">מדווח:</label>
@@ -81,14 +88,18 @@
                             </select>
                         </div>
                         
-                        <!-- Hidden Date and Time Inputs by default -->
-                        <div id="dateInputContainer" class="flex-shrink-0 w-full sm:w-auto hidden">
-                            <label for="newDate" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תאריך:</label>
-                            <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
-                        </div>
-                        <div id="timeInputContainer" class="flex-shrink-0 w-full sm:w-auto hidden">
-                            <label for="newTime" class="block mb-1 text-sm font-semibold text-[#6D5F53]">שעה:</label>
-                            <input type="text" id="newTime" class="form-input w-full p-2 border rounded-md" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+                        <!-- New container for date/time, hidden by default and stacked -->
+                        <div id="dateTimeInputsWrapper" class="flex-shrink-0 w-full sm:w-48 hidden">
+                            <div class="flex flex-col gap-2"> <!-- Stack date and time vertically -->
+                                <div>
+                                    <label for="newDate" class="block mb-1 text-sm font-semibold text-[#6D5F53]">תאריך:</label>
+                                    <input type="date" id="newDate" class="form-input w-full p-2 border rounded-md">
+                                </div>
+                                <div>
+                                    <label for="newTime" class="block mb-1 text-sm font-semibold text-[#6D5F53]">שעה:</label>
+                                    <input type="text" id="newTime" class="form-input w-full p-2 border rounded-md" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="flex-shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-end gap-2"> <button id="mainActionBtn" class="btn-primary font-bold py-2 px-6 rounded-lg shadow w-full sm:w-auto">הזן</button>
@@ -101,7 +112,7 @@
             </div>
 
             <div class="table-container overflow-x-auto">
-                 <p class="text-md text-[#6D5F53] mb-4">זוהי טבלת הדיווחים. כל דיווח חדש שיתווסף או יעודכן יופיע כאן באופן מיידי.</p>
+                
                 <table class="w-full min-w-full text-sm">
                     <thead class="bg-[#F8F5F1]">
                         <tr>
@@ -125,8 +136,9 @@
     </div>
 
     <script>
-        let reports = []; // Global scope
-        let editingReportIndex = null; // Global scope
+        let reports = []; // Global scope: holds all reports
+        let editingReportIndex = null; // Global scope: index of report being edited
+        let lastAddedReportId = null; // Global scope: ID of the report most recently added (for LIFO top display)
 
         document.addEventListener('DOMContentLoaded', () => {
             const filterReporter = document.getElementById('filterReporter');
@@ -135,8 +147,7 @@
             const generalTextInput = document.getElementById('generalTextInput');
             const newDateInput = document.getElementById('newDate'); 
             const newTimeInput = document.getElementById('newTime'); 
-            const dateInputContainer = document.getElementById('dateInputContainer'); // New ref
-            const timeInputContainer = document.getElementById('timeInputContainer'); // New ref
+            const dateTimeInputsWrapper = document.getElementById('dateTimeInputsWrapper'); 
 
             const mainActionBtn = document.getElementById('mainActionBtn');
             const cancelEditBtn = document.getElementById('cancelEditBtn');
@@ -144,7 +155,22 @@
             const emptyStateRow = document.getElementById('empty-state');
             const inputErrorMessage = document.getElementById('inputErrorMessage');
 
-            // Sets default date and time in the input fields
+            // --- Auto-resize Textarea Logic ---
+            const autoResizeTextarea = (textarea) => {
+                textarea.style.height = 'auto'; // Reset height to recalculate
+                textarea.style.height = (textarea.scrollHeight) + 'px'; // Set height based on content
+            };
+
+            // Event listener for input on the general text area
+            generalTextInput.addEventListener('input', () => {
+                // Only auto-resize if not in edit mode
+                if (editingReportIndex === null) {
+                    autoResizeTextarea(generalTextInput);
+                }
+            });
+            // --- End Auto-resize Textarea Logic ---
+
+            // Sets default date and time in the input fields (used for initial load and after reset)
             const setDefaultDateTime = () => {
                 const now = new Date();
                 const year = now.getFullYear();
@@ -154,7 +180,7 @@
                 
                 const hours = now.getHours().toString().padStart(2, '0');
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                newTimeInput.value = `${hours}:${minutes}`; // Ensures 24H format for default
+                newTimeInput.value = `${hours}:${minutes}`; 
             };
             
             // Function to validate time format (HH:MM)
@@ -172,7 +198,23 @@
                 return `${day}/${month}/${year}`;
             };
 
-            // renderTable now simply renders the reports array as is (no sorting)
+            // Function to sort reports by date (descending) then time (descending) - operates on reports array
+            const sortChronologically = () => { 
+                reports.sort((a, b) => { // Sorts the global 'reports' array directly
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+
+                    if (dateA > dateB) return -1; 
+                    if (dateA < dateB) return 1;  
+
+                    if (a.time > b.time) return -1; 
+                    if (a.time < b.time) return 1;  
+
+                    return 0; 
+                });
+            };
+
+            // Renders the table content based on the reports array and current sorting rules
             const renderTable = () => {
                 tableBody.innerHTML = '';
                 
@@ -182,8 +224,23 @@
                     return;
                 }
 
-                // Render the reports in their current order (Last-In-First-Out for additions, in-place for updates)
-                reports.forEach((report) => {
+                let finalDisplayList = [...reports]; // Start with a copy of the reports array
+
+                // Apply hybrid sorting logic:
+                // Rule 1: The last NEWLY ADDED report always at the top.
+                if (lastAddedReportId) {
+                    const lastAddedIndex = finalDisplayList.findIndex(report => report.id === lastAddedReportId);
+                    if (lastAddedIndex !== -1) {
+                        const [topReport] = finalDisplayList.splice(lastAddedIndex, 1); // Remove it
+                        finalDisplayList.unshift(topReport); // Add it to the very beginning
+                    } else {
+                        // lastAddedReportId not found, clear it, implies we fall back to other rules
+                        lastAddedReportId = null;
+                    }
+                }
+                
+                // Render the reports from finalDisplayList
+                finalDisplayList.forEach((report) => { 
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-[#F8F5F1]';
                     row.innerHTML = `
@@ -198,12 +255,19 @@
                     `;
                     tableBody.appendChild(row);
                 });
-                console.log('Current reports array (raw order):', reports); // For debugging
+                console.log('Current reports array (internal order):', reports); 
+                console.log('Reports displayed in table (derived from internal order + lastAdded logic):', finalDisplayList);
             };
 
             // Clears the input fields and resets the form to "add new report" mode
             const resetForm = () => {
                 generalTextInput.value = '';
+                // Reset textarea to initial 3 row height and auto-resize it for add mode
+                generalTextInput.rows = 3; // Set to initial rows
+                generalTextInput.style.height = 'auto'; // Clear inline height
+                generalTextInput.classList.remove('edit-mode-fixed-height'); // Remove fixed height class if present
+                autoResizeTextarea(generalTextInput); // Trigger initial auto-resize from 3 lines
+
                 setDefaultDateTime(); 
                 generalTextInput.focus();
                 editingReportIndex = null; // Clear index for editing
@@ -212,60 +276,59 @@
                 inputErrorMessage.textContent = '';
                 
                 // Hide date and time inputs after reset
-                dateInputContainer.classList.add('hidden');
-                timeInputContainer.classList.add('hidden');
+                dateTimeInputsWrapper.classList.add('hidden'); // Hide the entire wrapper
+
+                // Ensure date and time inputs are fully editable (if shown again)
+                newDateInput.readOnly = false; 
+                newTimeInput.readOnly = false; 
 
                 renderTable(); // Re-render to reflect the reset state
             };
 
-            // Adds a new report
+            // Adds a new report (LIFO for adds)
             const addReport = () => {
                 const description = generalTextInput.value.trim();
-                // For new reports, always take current date/time
-                const date = newDateInput.value; // It will be the default set by setDefaultDateTime
-                const time = newTimeInput.value; // It will be the default set by setDefaultDateTime
+                const date = newDateInput.value; 
+                const time = newTimeInput.value; 
                 
-                const reporter = filterReporter.value; // Get from dropdown
-                const logType = filterLogType.value;   // Get from dropdown
+                const reporter = filterReporter.value; 
+                const logType = filterLogType.value;   
 
-                if (!description) { // Only description is mandatory for new add as date/time are auto-filled
+                if (!description) { 
                     inputErrorMessage.textContent = 'יש למלא את שדה תיאור הדיווח.';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
 
-                // Date and time are always filled by setDefaultDateTime on reset/load, so no format validation needed on add
-                // as they come from internal functions.
-
                 const newReport = { 
-                    id: crypto.randomUUID(), // Assign a unique ID
+                    id: crypto.randomUUID(), 
                     description, 
                     date, 
                     time, 
                     reporter, 
                     logType 
                 };
-                reports.unshift(newReport); // Add to the BEGINNING of the array
-                renderTable(); // Simply render, no sorting
-                resetForm(); // Reset form after adding
+                reports.unshift(newReport); // Add to the BEGINNING of the internal array
+                lastAddedReportId = newReport.id; // Mark this as the last added report
+                renderTable(); // Render (LIFO will be maintained)
+                resetForm(); 
             };
 
-            // Updates an existing report
+            // Updates an existing report (full chronological sort for updates)
             const updateReport = () => {
                 const description = generalTextInput.value.trim();
-                // For updates, use the values from the visible inputs
                 const date = newDateInput.value; 
                 const time = newTimeInput.value; 
 
-                const reporter = filterReporter.value; // Get from dropdown
-                const logType = filterLogType.value;   // Get from dropdown
+                const reporter = filterReporter.value; 
+                const logType = filterLogType.value;   
 
-                if (!description || !date || !time) { // All fields are mandatory for updates
+                if (!description || !date || !time) { 
                     inputErrorMessage.textContent = 'יש למלא את כל השדות: תיאור, תאריך ושעה.';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
                 }
-                if (!isValidTimeFormat(time)) { // Validate time format for updates
+                if (!isValidTimeFormat(time)) { 
                     inputErrorMessage.textContent = 'פורמט שעה שגוי. אנא הזן HH:MM (לדוגמה, 14:30).';
                     setTimeout(() => inputErrorMessage.textContent = '', 3000);
                     return;
@@ -279,8 +342,11 @@
                     reportToUpdate.reporter = reporter;
                     reportToUpdate.logType = logType;
 
-                    renderTable(); // Simply render, no sorting (updates in place)
-                    resetForm(); // Reset form after updating
+                    // After update, apply full chronological sort to the ENTIRE reports array
+                    sortChronologically(); // Sorts the global 'reports' array directly
+                    lastAddedReportId = null; // Clear last added to ensure full chronological sort is dominant now
+                    renderTable(); // Render the newly sorted table
+                    resetForm(); 
                 }
             };
 
@@ -314,24 +380,35 @@
                     generalTextInput.value = reportToEdit.description;
                     newDateInput.value = reportToEdit.date;
                     newTimeInput.value = reportToEdit.time; 
-                    filterReporter.value = reportToEdit.reporter; // Update dropdown
-                    filterLogType.value = reportToEdit.logType;   // Update dropdown
+                    filterReporter.value = reportToEdit.reporter; 
+                    filterLogType.value = reportToEdit.logType;   
                     
-                    editingReportIndex = index; // Set editing mode
-                    mainActionBtn.textContent = 'עדכן דיווח'; // Change button text
-                    cancelEditBtn.classList.remove('hidden'); // Show cancel button
+                    editingReportIndex = index; 
+                    mainActionBtn.textContent = 'עדכן דיווח'; 
+                    cancelEditBtn.classList.remove('hidden'); 
                     
                     // SHOW date and time inputs when editing
-                    dateInputContainer.classList.remove('hidden');
-                    timeInputContainer.classList.remove('hidden');
+                    dateTimeInputsWrapper.classList.remove('hidden'); // Show the entire wrapper
 
-                    generalTextInput.focus(); // Focus on description for editing
+                    // Set textarea to fixed height for edit mode
+                    generalTextInput.rows = 5; // Set fixed rows for edit mode
+                    generalTextInput.style.height = 'auto'; // Clear inline height from auto-resize
+                    generalTextInput.classList.add('edit-mode-fixed-height'); // Add class for fixed height
+
+                    // Date input should allow picker, not manual typing (type="date")
+                    newDateInput.readOnly = false; // Ensures picker works
+
+                    // Time input should allow direct manual input (type="text")
+                    newTimeInput.readOnly = false; 
+
+                    generalTextInput.focus(); 
                 }
             });
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
-            renderTable(); // Initial render
+            resetForm(); // Call resetForm to ensure initial textarea state is correct for add mode
+            renderTable(); 
         });
     </script>
 </body>
