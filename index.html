@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are hidden by default and only appear when editing an existing report. When visible for editing, the date input uses a native picker, and the time input allows direct manual typing. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table sorting has a hybrid behavior: new additions always go to the top (LIFO), while updates trigger a full chronological sort (date descending, then time descending) for the entire table. This balances immediate visibility for new entries with predictable ordering after changes. -->
-    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & HTML Table (for display) -> Interaction: Users input data into the primary form fields. The main action button toggles between 'הזן' (Add) and 'עדכן דיווח' (Update) based on whether an existing report is being edited. Clicking 'Edit' next to a table row populates the form and switches the button to 'Update', dynamically showing date/time inputs. The date input is type="date" enabling its native picker. The time input is type="text" and allows direct manual input, validated for HH:MM format. The "תיאור דיווח" textarea starts as 3 rows and auto-resizes in 'add' mode, but maintains a fixed (taller, 5 rows) height in 'edit' mode. Sorting logic: new additions are prepended to the array (LIFO display); updates trigger a full chronological sort (date desc, time desc) on the entire array. Justification: A compact, horizontally-aligned input form enhances data entry speed for frequent tasks on wider screens, while responsive stacking ensures mobile usability. Dynamically showing flexible date/time inputs during edit streamlines the default add experience while providing direct input options. The hybrid sorting mechanism directly implements the user's specific requirements, prioritizing immediate display of new entries balanced with full chronological order after modifications. Dynamic textarea height in add mode improves initial aesthetics and usability while fixed height in edit mode provides ample space. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsive layout. -->
+    <!-- Application Structure Plan: A single-page, task-oriented application designed for efficient data entry and management. The primary input area features report description, reporter, log type, and action buttons arranged horizontally on larger screens for compact and efficient interaction. Date and time inputs are hidden by default and only appear when editing an existing report. When visible for editing, the date input uses a native picker, and the time input allows direct manual typing. On smaller screens, these elements gracefully stack vertically to maintain usability. This consolidated input block is followed by the main content area displaying the data table. The table now features date-based grouping with expand/collapse functionality (default collapsed for non-today dates) and global expand/collapse controls. Sorting is hybrid: new additions go to top (LIFO), updates trigger full chronological sort. -->
+    <!-- Visualization & Content Choices: Report Data -> Goal: Input/Manage -> Presentation: Consolidated HTML Form (for add/edit) & Grouped Collapsible HTML Table -> Interaction: Users input data via form. Add button is LIFO. Update button triggers full chronological sort. Edit button reveals date/time inputs for modification. Date input is type="date". Time input is type="text" with manual input. Global/per-day buttons control collapse state. Textarea auto-resizes in add mode, fixed height in edit. Justification: Enhanced usability for data entry and review, clear visual organization, and precise adherence to complex sorting requirements. Library/Method: Vanilla JS for DOM manipulation and state management, Tailwind CSS for styling and responsiveness. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
@@ -21,6 +21,14 @@
             border-bottom: 1px solid #EAE2D9;
             vertical-align: middle;
         }
+        /* Remove default border from inner table cells for cleaner look */
+        .collapsible-content table .table-cell {
+            border-bottom: none;
+        }
+        .collapsible-content table tbody tr:last-child .table-cell {
+            border-bottom: 1px solid #EAE2D9; /* Add border to last row of inner table */
+        }
+
         .form-input, .form-select, .form-textarea {
             border-color: #DCD5CC;
             transition: all 0.3s ease;
@@ -112,9 +120,13 @@
             </div>
 
             <div class="table-container overflow-x-auto">
+                <div class="flex justify-start gap-4 mb-4"> <!-- Global buttons for table control -->
+                    <button id="expandAllBtn" class="btn-secondary font-bold py-1.5 px-4 rounded-lg shadow text-sm">פתח הכל</button>
+                    <button id="collapseAllBtn" class="btn-secondary font-bold py-1.5 px-4 rounded-lg shadow text-sm">צמצם הכל</button>
+                </div>
                 
                 <table class="w-full min-w-full text-sm">
-                    <thead class="bg-[#F8F5F1]">
+                    <thead>
                         <tr>
                             <th class="table-cell font-bold text-[#6D5F53]">דיווח</th>
                             <th class="table-cell font-bold text-[#6D5F53]">תאריך</th>
@@ -139,6 +151,7 @@
         let reports = []; // Global scope: holds all reports
         let editingReportIndex = null; // Global scope: index of report being edited
         let lastAddedReportId = null; // Global scope: ID of the report most recently added (for LIFO top display)
+        let collapsedGroups = new Set(); // Global scope: Stores dates (YYYY-MM-DD) of currently collapsed groups
 
         document.addEventListener('DOMContentLoaded', () => {
             const filterReporter = document.getElementById('filterReporter');
@@ -154,6 +167,9 @@
             const tableBody = document.getElementById('reportTableBody');
             const emptyStateRow = document.getElementById('empty-state');
             const inputErrorMessage = document.getElementById('inputErrorMessage');
+
+            const expandAllBtn = document.getElementById('expandAllBtn');
+            const collapseAllBtn = document.getElementById('collapseAllBtn');
 
             // --- Auto-resize Textarea Logic ---
             const autoResizeTextarea = (textarea) => {
@@ -216,7 +232,7 @@
 
             // Renders the table content based on the reports array and current sorting rules
             const renderTable = () => {
-                tableBody.innerHTML = '';
+                tableBody.innerHTML = ''; // Clear existing table body
                 
                 if (reports.length === 0) {
                     tableBody.appendChild(emptyStateRow);
@@ -224,39 +240,123 @@
                     return;
                 }
 
-                let finalDisplayList = [...reports]; // Start with a copy of the reports array
+                let displayListForProcessing = [...reports]; // Start with a copy for processing
 
                 // Apply hybrid sorting logic:
                 // Rule 1: The last NEWLY ADDED report always at the top.
                 if (lastAddedReportId) {
-                    const lastAddedIndex = finalDisplayList.findIndex(report => report.id === lastAddedReportId);
+                    const lastAddedIndex = displayListForProcessing.findIndex(report => report.id === lastAddedReportId);
                     if (lastAddedIndex !== -1) {
-                        const [topReport] = finalDisplayList.splice(lastAddedIndex, 1); // Remove it
-                        finalDisplayList.unshift(topReport); // Add it to the very beginning
+                        const [topReport] = displayListForProcessing.splice(lastAddedIndex, 1); // Remove it
+                        displayListForProcessing.unshift(topReport); // Add it to the very beginning
                     } else {
                         // lastAddedReportId not found, clear it, implies we fall back to other rules
                         lastAddedReportId = null;
                     }
                 }
                 
-                // Render the reports from finalDisplayList
-                finalDisplayList.forEach((report) => { 
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-[#F8F5F1]';
-                    row.innerHTML = `
-                        <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
-                        <td class="table-cell">${formatAsDDMMYYYY(report.date)}</td>
-                        <td class="table-cell">${report.time}</td>
-                        <td class="table-cell">${report.reporter}</td>
-                        <td class="table-cell">${report.logType}</td>
-                        <td class="table-cell text-center whitespace-nowrap">
-                            <button data-id="${report.id}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
+                // Group reports by date for rendering
+                const groupedReports = new Map();
+                displayListForProcessing.forEach(report => {
+                    const dateKey = report.date; // YYYY-MM-DD format
+                    if (!groupedReports.has(dateKey)) {
+                        groupedReports.set(dateKey, []);
+                    }
+                    groupedReports.get(dateKey).push(report);
+                });
+
+                // Sort the date keys for displaying date groups chronologically (descending)
+                const sortedDateKeys = Array.from(groupedReports.keys()).sort((a, b) => {
+                    return new Date(b) - new Date(a);
+                });
+
+                const today = new Date();
+                const todayKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+
+                sortedDateKeys.forEach(dateKey => {
+                    const reportsForDate = groupedReports.get(dateKey);
+                    const isToday = dateKey === todayKey;
+                    const isCollapsed = collapsedGroups.has(dateKey); // Check current collapse state
+
+                    // Date Header Row
+                    const headerRow = document.createElement('tr');
+                    headerRow.className = 'date-group-header bg-[#F8F5F1] border-b-2 border-[#DCD5CC]';
+                    headerRow.innerHTML = `
+                        <td colspan="6" class="p-3 font-bold text-[#6D5F53] text-right">
+                            <button class="toggle-day-btn text-blue-600 hover:text-blue-800 ml-2" data-toggle-date="${dateKey}">
+                                ${isCollapsed ? '◀' : '▼'}
+                            </button>
+                            ${formatAsDDMMYYYY(dateKey)}
                         </td>
                     `;
-                    tableBody.appendChild(row);
+                    tableBody.appendChild(headerRow);
+
+                    // Content Rows Wrapper (collapsible)
+                    const reportsContainerRow = document.createElement('tr');
+                    reportsContainerRow.className = `date-group-content ${isCollapsed ? 'hidden' : ''}`; // Apply hidden based on state
+                    reportsContainerRow.dataset.contentDate = dateKey; // For easy targeting
+
+                    const reportsCell = document.createElement('td');
+                    reportsCell.colSpan = 6;
+                    reportsCell.className = 'p-0'; // Remove padding from this cell
+
+                    const innerTable = document.createElement('table'); // Inner table to hold reports for this day
+                    innerTable.className = 'w-full text-sm';
+                    const innerTbody = document.createElement('tbody');
+
+                    // Render individual report rows inside the inner table
+                    reportsForDate.forEach(report => {
+                        const reportRow = document.createElement('tr');
+                        reportRow.className = 'hover:bg-[#F8F5F1]';
+                        reportRow.innerHTML = `
+                            <td class="table-cell">${report.description.replace(/\n/g, '<br>')}</td>
+                            <td class="table-cell">${formatAsDDMMYYYY(report.date)}</td>
+                            <td class="table-cell">${report.time}</td>
+                            <td class="table-cell">${report.reporter}</td>
+                            <td class="table-cell">${report.logType}</td>
+                            <td class="table-cell text-center whitespace-nowrap">
+                                <button data-id="${report.id}" class="text-blue-600 hover:text-blue-800 font-semibold edit-btn">ערוך</button>
+                            </td>
+                        </tr>
+                        `;
+                        innerTbody.appendChild(reportRow);
+                    });
+
+                    innerTable.appendChild(innerTbody);
+                    reportsCell.appendChild(innerTable);
+                    reportsContainerRow.appendChild(reportsCell);
+                    tableBody.appendChild(reportsContainerRow);
+                    
+                    // Default collapse/expand logic for initial rendering if not already set
+                    // If not today's date AND not already marked as collapsed, then collapse it.
+                    if (!isToday && !collapsedGroups.has(dateKey)) {
+                        collapsedGroups.add(dateKey);
+                        reportsContainerRow.classList.add('hidden');
+                        headerRow.querySelector('.toggle-day-btn').textContent = '◀';
+                    }
                 });
-                console.log('Current reports array (internal order):', reports); 
-                console.log('Reports displayed in table (derived from internal order + lastAdded logic):', finalDisplayList);
+
+                // Attach event listeners for individual toggle buttons (delegation from tableBody would be more efficient)
+                tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const dateToToggle = e.target.dataset.toggleDate;
+                        const contentRow = tableBody.querySelector(`tr[data-content-date="${dateToToggle}"]`);
+                        if (contentRow) {
+                            contentRow.classList.toggle('hidden');
+                            if (contentRow.classList.contains('hidden')) {
+                                e.target.textContent = '◀';
+                                collapsedGroups.add(dateToToggle);
+                            } else {
+                                e.target.textContent = '▼';
+                                collapsedGroups.delete(dateToToggle);
+                            }
+                        }
+                    });
+                });
+                
+                console.log('Current reports array (internal storage order):', reports); 
+                console.log('Reports displayed in table (derived from internal order + LIFO/chronological + grouping):', displayListForProcessing);
+                console.log('Collapsed Groups State:', collapsedGroups);
             };
 
             // Clears the input fields and resets the form to "add new report" mode
@@ -310,6 +410,10 @@
                 };
                 reports.unshift(newReport); // Add to the BEGINNING of the internal array
                 lastAddedReportId = newReport.id; // Mark this as the last added report
+                
+                // Ensure the new report's date group is expanded when added
+                collapsedGroups.delete(newReport.date); // Open the group for the newly added report
+
                 renderTable(); // Render (LIFO will be maintained)
                 resetForm(); 
             };
@@ -345,6 +449,10 @@
                     // After update, apply full chronological sort to the ENTIRE reports array
                     sortChronologically(); // Sorts the global 'reports' array directly
                     lastAddedReportId = null; // Clear last added to ensure full chronological sort is dominant now
+                    
+                    // Ensure the updated report's new date group is expanded
+                    collapsedGroups.delete(reportToUpdate.date); // Open the group for the updated report
+
                     renderTable(); // Render the newly sorted table
                     resetForm(); 
                 }
@@ -404,6 +512,37 @@
                     generalTextInput.focus(); 
                 }
             });
+
+            // Global expand/collapse buttons
+            if (expandAllBtn) {
+                expandAllBtn.addEventListener('click', () => {
+                    collapsedGroups.clear(); // Clear all collapsed states
+                    tableBody.querySelectorAll('.date-group-content').forEach(div => {
+                        div.classList.remove('hidden'); // Show all content rows
+                    });
+                    tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
+                        button.textContent = '▼'; // Update all toggle button arrows
+                    });
+                    // No need to call renderTable() here, direct DOM manipulation is sufficient and desired.
+                });
+            }
+
+            if (collapseAllBtn) {
+                collapseAllBtn.addEventListener('click', () => {
+                    collapsedGroups.clear(); 
+                    // Add all current date keys to collapsed state
+                    const allDateKeysInTable = Array.from(new Set(reports.map(r => r.date)));
+                    allDateKeysInTable.forEach(key => collapsedGroups.add(key));
+
+                    tableBody.querySelectorAll('.date-group-content').forEach(div => {
+                        div.classList.add('hidden'); // Hide all content rows
+                    });
+                    tableBody.querySelectorAll('.toggle-day-btn').forEach(button => {
+                        button.textContent = '◀'; // Update all toggle button arrows
+                    });
+                    // No need to call renderTable() here, direct DOM manipulation is sufficient and desired.
+                });
+            }
 
             // Initialize default date and time, and render table on load
             setDefaultDateTime();
